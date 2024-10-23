@@ -94,3 +94,24 @@ main {
         right: 0.75rem;
         top: 0.5rem;
     }
+
+.top-row {
+    position: fixed;
+    width: 100%;
+    background-color: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+.drawer {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    text-align: center;
+    background-color: white;
+    padding: 10px;
+    box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
+}
+.logo
+{
+    position:absolute;
+    left:2vw;
+}
