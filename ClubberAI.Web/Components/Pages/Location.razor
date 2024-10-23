@@ -1,0 +1,388 @@
+﻿@page "/"
+@implements IDisposable
+@rendermode InteractiveServer
+@using Blazr.RenderState
+@using AzureMapsControl.Components.Map
+@using AzureMapsControl.Components.Markers
+@using Flurl.Http
+@using AzureMapsControl.Components.Atlas
+@using AzureMapsControl.Components.Popups
+@using System.Text.RegularExpressions
+@using BootstrapBlazor.Components
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@using ClubberAI.ServiceDefaults
+@using ClubberAI.ServiceDefaults.Model
+@inject IBlazrRenderStateService RenderState
+@inject IJSRuntime JsRuntime
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider GetAuthenticationStateAsync
+
+<PageTitle>Clubber AI</PageTitle>
+
+@if (RenderState.IsPreRender)
+{
+	<Splash />
+	return;
+}
+
+<div class="activeParty @(_activeParty != null ? "active" : "notactive")">
+	@if (_existingParticipant != null && _activeParty != null)
+	{
+		<div class="partyback" style="background-image:url(@_activeParty.Photo)"></div>
+		<div class="partygradient" style="background: linear-gradient(0deg, rgba(21,21,21,1) 0%, rgba(0,0,0,0.840795693277311) 8%, rgba(78,78,78,0.5690870098039216) 54%, rgba(0,0,0,0.26376488095238093) 92%, @(_activeParty.PrimaryColor)77 100%)"></div>
+		<div class="row">
+			<div class="col col-12 partypage">
+				<a href="javascript:void(0)" class="closebtn" @onclick="() => _activeParty = null">&#10005;</a>
+				<img class="flyer" src="@_existingParticipant.Photo" />
+				<h2>Avatar</h2>
+				<span><b>Name:</b> @_existingParticipant.Name</span>
+				<span><b>Hair style:</b>@_existingParticipant.HairStyle</span>
+				<span><b>Ethnicity:</b> @_existingParticipant.Ethnicity</span>
+				<span><b>Gender:</b> @_existingParticipant.Gender</span>
+				<button @onclick="RecreateAvatar" class="btn-secondary">New avatar</button>
+				<button @onclick="Chat">Start mingling</button>
+			</div>
+		</div>
+	}
+	else if (_newParticipant != null && _activeParty != null)
+	{
+		<div class="partyback" style="background-image:url(@_activeParty.Photo)"></div>
+		<div class="partygradient" style="background: linear-gradient(0deg, rgba(21,21,21,1) 0%, rgba(0,0,0,0.840795693277311) 8%, rgba(78,78,78,0.5690870098039216) 54%, rgba(0,0,0,0.26376488095238093) 92%, @(_activeParty.PrimaryColor)77 100%)"></div>
+		<div class="row">
+			<div class="col col-12 partypage">
+				<a href="javascript:void(0)" class="closebtn" @onclick="() => _activeParty = null">&#10005;</a>
+				@if (!string.IsNullOrWhiteSpace(_newParticipant.Photo))
+				{
+					<img class="flyer" src="@_newParticipant.Photo" />
+				}
+				<h2>Create an avatar for the party</h2>
+				<span><b>Name:</b></span>
+				<input type="text" @bind=@_newParticipant.Name placeholder="E.g. Alex M" />
+				<span><b>Hair style:</b></span>
+				<input type="text" @bind=@_newParticipant.HairStyle placeholder="E.g. Blonde long/Black short curly" />
+				<span><b>Ethnicity:</b></span>
+				<input type="text" @bind=@_newParticipant.Ethnicity placeholder="E.g. Black/White/Asian" />
+				<span><b>Gender:</b></span>
+				<select value="@NewGender" disabled="disabled">
+					<option value="M">Male</option>
+					<option value="F">Female</option>
+				</select>
+				@if (_busy)
+				{
+					<button disabled="disabled" class="btn-secondary">Generating...</button>
+				}
+				else if (string.IsNullOrWhiteSpace(_newParticipant.Photo))
+				{
+					<button @onclick="Generate">Generate photo</button>
+				}
+				else
+				{
+					@if (_tries >= 3)
+					{
+						<button disabled="disabled" class="btn-secondary">Regenerate</button>
+					}
+					else
+					{
+						<button @onclick="Generate" class="btn-secondary">Regenerate (@(3 - _tries) left)</button>
+					}
+					<button @onclick="Chat">Start mingling</button>
+				}
+			</div>
+		</div>
+	}
+	else if (_activeParty != null)
+	{
+		<div class="partyback" style="background-image:url(@_activeParty.Photo)"></div>
+		<div class="partygradient" style="background: linear-gradient(0deg, rgba(21,21,21,1) 0%, rgba(0,0,0,0.840795693277311) 8%, rgba(78,78,78,0.5690870098039216) 54%, rgba(0,0,0,0.26376488095238093) 92%, @(_activeParty.PrimaryColor)77 100%)"></div>
+		<div class="row">
+			<div class="col col-12 partypage">
+				<a href="javascript:void(0)" class="closebtn" @onclick="() => _activeParty = null">&#10005;</a>
+				<img class="flyer" src="@_activeParty.Photo"/>
+				<h2>@_activeParty.PartyName</h2>
+				<span><b>Access:</b> free</span>
+				<span><b>Time:</b> ongoing</span>
+				<br/>
+				<span><b>Music style:</b> @_activeParty.MusicStyle</span>
+				<span><b>Style:</b> @_activeParty.DressCode</span>
+				<span><b>Description:</b><br />@((MarkupString)_activeParty.Description.Replace("\r\n", "<br/>"))</span>
+				<span><b>Participants:</b></span>
+				<p class="participantwidget">
+					@foreach (var somePhoto in _activeParty.SomePhotos)
+					{
+						<img src="@somePhoto" class="participantwidgetimage" />
+					}
+					<span>@(_activeParty.ParticipantCount) Active Participants</span>
+				</p>
+				
+				<button @onclick="Join">Attend @_activeParty.PartyName</button>
+			</div>
+		</div>
+	}
+</div>
+
+<AzureMap Id="map"
+		  CameraOptions="new CameraOptions { Zoom = 10 }"
+		  StyleOptions="new StyleOptions { ShowLogo = false, ShowFeedbackLink = false, AutoResize = true, Style = MapStyle.GrayscaleLight }"
+		  EventActivationFlags="MapEventActivationFlags.None().Enable(MapEventType.Ready)"
+		  OnReady="OnMapReadyAsync" />
+
+
+<Modal @ref="modal">
+	<ModalDialog Title="Register/login" ShowCloseButton="false">
+
+		<BodyTemplate>
+			<div class="row">
+				<h4>First things first</h4>
+				<p>
+					Register now to confirm you are a human to join the party!
+				</p>
+			</div>
+		</BodyTemplate>
+		<FooterTemplate>
+				@if (!string.IsNullOrWhiteSpace(_error))
+				{
+					<div class="alert alert-warning">@_error</div>
+				}
+				<span>Gender:</span>
+				<InputSelect @bind-Value="@NewGender">
+					<option value="M">Male</option>
+					<option value="F">Female</option>
+				</InputSelect>
+				<button value="Subscribe now">Login with Near</button>
+		</FooterTemplate>
+	</ModalDialog>
+
+</Modal>
+
+@code {
+	private (double, double) Coordinates;
+	private bool Init;
+
+	private int _tries;
+	private string? _error = null;
+
+	private Modal modal;
+
+	private string? NewGender = "M";
+
+	private bool _busy;
+
+	protected string CurrentLatitude =>
+		Coordinates.Item1.ToString("F2");
+	protected string CurrentLongitude =>
+		Coordinates.Item2.ToString("F2");
+	public string? WalletUser { get; set; }
+
+	private Party? _activeParty;
+	private Participant? _newParticipant;
+
+	IDictionary<string, HtmlMarker> _markers = new Dictionary<string, HtmlMarker>();
+	IDictionary<string, Party> _parties = new Dictionary<string, Party>();
+	private DotNetObjectReference<Location> objRef;
+	private Participant? _existingParticipant;
+
+	[CascadingParameter]
+	private Task<AuthenticationState>? authenticationState { get; set; }
+
+	protected override void OnInitialized()
+	{
+		objRef = DotNetObjectReference.Create(this);
+	}
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (firstRender)
+		{
+			objRef = DotNetObjectReference.Create(this);
+			await JsRuntime.InvokeVoidAsync("MapHelpers.setDotNetHelper",
+				objRef);
+		}
+	}
+
+	protected async Task LoadPins(Map map)
+	{
+		//TODO: Return list from backend. Something like this?
+		var parties = await $"{Navigation.BaseUri}api/Parties/getTodaysParties".GetJsonAsync<IList<Party>>();
+		_parties = parties.ToDictionary(x => x.Id);
+		foreach (var party in parties)
+		{
+			var point = GeoUtils.GenerateRandomPoint(Coordinates.Item1, Coordinates.Item2, 500);
+
+
+			var htmlMarker = new HtmlMarker(
+				new HtmlMarkerOptions
+					{
+						Position = new Position(point.Item2, point.Item1),
+						Draggable = false,
+						Color = "#fffec9",
+						Popup = new HtmlMarkerPopup(new PopupOptions
+						{
+							Content = $@"
+<div class=""partypopup row"">
+	<div class=""col-7 col"" >
+
+		<h2>{party.PartyName}</h2>
+		<span><b>Access:</b> free</span>
+		<span><b>Time:</b> ongoing</span>
+					<br/>
+		<span><b>Music style:</b> {party.MusicStyle}</span>
+		<span><b>Style:</b> {party.DressCode}</span>
+		<button onclick=""MapHelpers.openParty('{party.Id}');"">Open</button>
+
+	</div>
+	<div class=""col-5 col"" >
+		<img class=""flyer"" src=""{party.PhotoThumb}"" />
+	</div>
+</div>",
+							Position = new Position(point.Item2, point.Item1),
+							FillColor = "white",
+							CloseButton = false,
+							OpenOnAdd = false,
+							ShowPointer = true
+						})
+					}, HtmlMarkerEventActivationFlags.None().Enable(HtmlMarkerEventType.Click));
+			_markers.Add(party.Id, htmlMarker);
+			htmlMarker.OnClick += async (args) =>
+			{
+				foreach (var marker in _markers.Values.Where(x => x != htmlMarker))
+				{
+					await marker.Options.Popup.CloseAsync();
+				}
+				await htmlMarker.TogglePopupAsync();
+			};
+			await map.AddHtmlMarkersAsync
+			(
+				htmlMarker
+			);
+		}
+
+		StateHasChanged();
+	}
+
+	public async Task OnMapReadyAsync(MapEventArgs eventArgs)
+	{
+		//CurrentPositionResult = await GeolocationService.GetCurrentPosition(options: new PositionOptions { EnableHighAccuracy = false });
+		Coordinates = await GetLocation();
+		await eventArgs.Map.SetCameraOptionsAsync(
+			options => options.Center =
+				new AzureMapsControl.Components.Atlas.Position
+					(Convert.ToDouble(CurrentLongitude), Convert.ToDouble(CurrentLatitude)));
+
+		LoadPins(eventArgs.Map);
+	}
+
+
+	[JSInvokable(nameof(OpenParty))]
+	public async Task OpenParty(string guid)
+	{
+		await _markers[guid].Options.Popup.CloseAsync();
+		await TryLogin();
+		if (string.IsNullOrWhiteSpace(WalletUser))
+		{
+			await modal.Show();
+			return;
+		}
+		_activeParty = _parties[guid];
+		StateHasChanged();
+	}
+
+
+	private async Task<(double, double)> GetLocation()
+	{
+		try
+		{
+			var location = (await JsRuntime.InvokeAsync<string>("getCoords"))?.Split(",");
+			return (double.Parse(location.First()), double.Parse(location.Last()));
+		}
+		catch
+		{
+			return (40.730610, -73.935242); //new york
+		}
+	}
+	public void Dispose() => objRef?.Dispose();
+
+	private async Task Join()
+	{
+		_tries = 0;
+		try
+		{
+			
+			//TODO: Should check if already at the party?
+			_existingParticipant = await $"{Navigation.BaseUri}api/Parties/getParticipation?partyId={_activeParty.Id}".GetJsonAsync<Participant>();
+		}
+		catch
+		{
+			
+		}
+		if (_newParticipant == null)
+		{
+			_newParticipant = new Participant { Id = _activeParty.Id, Age = "24", Gender = NewGender };
+		}
+	}
+
+	private async Task Generate()
+	{
+		_tries++;
+		_busy = true;
+		try
+		{
+			if (string.IsNullOrWhiteSpace(_newParticipant.Name) || string.IsNullOrWhiteSpace(_newParticipant.HairStyle) || string.IsNullOrWhiteSpace(_newParticipant.Name) || string.IsNullOrWhiteSpace(_newParticipant.Ethnicity) || string.IsNullOrWhiteSpace(_newParticipant.Gender))
+			{	
+				await JsRuntime.InvokeVoidAsync("alert", "Please fill all fields");
+				return;
+			}
+
+			//TODO: Generate photo for participant. Openai
+			var photo = await $"{Navigation.BaseUri}api/Parties/generatePhoto".PostJsonAsync(_newParticipant).ReceiveJson<Photo>();
+			
+			_newParticipant.Photo = photo.Url;
+			_newParticipant.PhotoThumb = photo.ThumbUrl;
+		}
+		finally
+		{
+			_busy = false;
+		}
+	}
+
+	private async Task Chat()
+	{
+		if (_existingParticipant != null)
+		{
+			Navigation.NavigateTo("/chat?party=" + _activeParty.Id);
+			return;
+		}
+		//TODO: set as participating
+		var photo = await $"{Navigation.BaseUri}api/Parties/participate".PostJsonAsync(_newParticipant);
+		if (photo.ResponseMessage.IsSuccessStatusCode)
+		{
+			Navigation.NavigateTo("/chat?party=" + _activeParty.Id);
+		}
+		else
+		{
+			await JsRuntime.InvokeVoidAsync("alert", "Error registering participation, please try again");
+		}
+	}
+
+	private async Task TryLogin()
+	{
+		if (!string.IsNullOrWhiteSpace(WalletUser))
+		{
+			return;
+		}
+		var authstate = await GetAuthenticationStateAsync.GetAuthenticationStateAsync();
+		var user = authstate.User;
+		WalletUser = user.Identity.Name;
+		NewGender = user.Claims.FirstOrDefault(x => x.Type == ClaimTypes.Gender)?.Value;
+	}
+
+	private async Task RecreateAvatar()
+	{
+		bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure you wish to abandon this avatar and restart a new one?");
+		if (confirmed)
+		{
+			_existingParticipant = null;
+			await Join();
+		}
+	}
+
+}

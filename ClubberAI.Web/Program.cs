@@ -1,6 +1,8 @@
 using ClubberAI.ServiceDefaults.Services;
 using ClubberAI.Web;
+using Blazr.RenderState.Server;
 using ClubberAI.Web.Components;
+using AzureMapsControl.Components;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,6 +10,17 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 builder.Services.AddScoped<PartyService>();
 builder.AddRedisOutputCache("cache");
+
+
+builder.Services.AddBootstrapBlazor();
+builder.AddBlazrRenderStateServerServices();
+builder.Services.AddAzureMapsControl(
+	configuration =>
+	{
+		var key = "9us7lWqyKd-0QjY9WKXcvgx6uxKh63NKq8vCYcOfQOA";
+		configuration.SubscriptionKey = key;
+	});
+
 
 // Add services to the container.
 builder.Services.AddRazorComponents()

@@ -12,6 +12,11 @@
 
   <ItemGroup>
     <PackageReference Include="Aspire.StackExchange.Redis.OutputCaching" Version="8.2.0" />
+    <PackageReference Include="AzureMapsControl.Components" Version="1.16.1" />
+    <PackageReference Include="Blazr.RenderState" Version="1.0.0" />
+    <PackageReference Include="Blazr.RenderState.Server" Version="1.0.0" />
+    <PackageReference Include="BootstrapBlazor" Version="8.10.4" />
+    <PackageReference Include="Flurl.Http" Version="4.0.2" />
   </ItemGroup>
 
 </Project>

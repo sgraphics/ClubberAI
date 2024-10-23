@@ -10,11 +10,64 @@
     <link rel="stylesheet" href="ClubberAI.Web.styles.css" />
     <link rel="icon" type="image/png" href="favicon.png" />
     <HeadOutlet />
+    <script>
+
+		function GetOffset() {
+			return new Date().getTimezoneOffset();
+		}
+		function GetUserTimeZone() {
+			return Intl.DateTimeFormat().resolvedOptions().timeZone;
+		}
+	</script>
+    <link rel="preload" as="image" href="/img/splashback.webp">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap"
+          data-tag="font" data-bs-tag="font" />
+    <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300&family=Sora:wght@100&display=swap" rel="stylesheet">
+
+    <link href="https://atlas.microsoft.com/sdk/javascript/mapcontrol/3/atlas.min.css" rel="stylesheet" />
 </head>
 
 <body>
     <Routes />
+    <script src="https://atlas.microsoft.com/sdk/javascript/mapcontrol/3/atlas.min.js"></script>
+    <script src="_content/AzureMapsControl.Components/azure-maps-control.min.js"></script>
+    <script src="azure-maps-control.min.js"></script>
     <script src="_framework/blazor.web.js"></script>
+    <script src="_content/BootstrapBlazor/js/bootstrap.blazor.bundle.min.js"></script>
+    <script type="text/javascript">
+
+		function ScrollBottom() {
+
+			var objDiv = document.getElementById("chatcontainer");
+			objDiv.scrollTop = objDiv.scrollHeight;
+		}
+
+	</script>
+    <script>
+
+		window.getCoords = async () => {
+			const pos = await new Promise((resolve, reject) => {
+				navigator.geolocation.getCurrentPosition(resolve, reject);
+			});
+			return pos.coords.latitude + ', ' + pos.coords.longitude
+
+		};
+	</script>
+    <script>
+		class MapHelpers {
+			static dotNetHelper;
+			static setDotNetHelper(value) {
+				MapHelpers.dotNetHelper = value;
+			}
+			static async openParty(id) {
+				await MapHelpers.dotNetHelper.invokeMethodAsync('OpenParty', id);
+			}
+		}
+		window.MapHelpers = MapHelpers;
+	</script>
 </body>
 
 </html>
