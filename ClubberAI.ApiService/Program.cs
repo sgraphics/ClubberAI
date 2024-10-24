@@ -1,9 +1,6 @@
-using MongoDB.Bson.Serialization.Attributes;
-using MongoDB.Bson;
-using MongoDB.Driver;
-using System.Linq;
-using System.Xml;
+using ClubberAI.ServiceDefaults;
 using ClubberAI.ServiceDefaults.Services;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,7 +11,8 @@ builder.AddMongoDBClient("mongodb");
 
 // Add services to the container.
 builder.Services.AddProblemDetails();
-builder.Services.AddScoped<PartyService>();
+builder.Services.AddSingleton<PartyService>();
+builder.Services.AddSingleton<AiProxy>();
 
 var app = builder.Build();
 
@@ -23,35 +21,76 @@ app.UseExceptionHandler();
 
 var summaries = new[]
 {
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
+	"Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
 };
+
+app.MapGet("/getTodaysParties", (PartyService partyService) => partyService.GetParties());
+
+app.MapGet("/getParticipation", async (HttpContext httpContext, PartyService partyService, [FromQuery] string partyId) =>
+{
+	var userId = httpContext.User.Identity?.Name;
+	if (string.IsNullOrEmpty(userId))
+	{
+		return Results.Unauthorized();
+	}
+
+	var participant = await partyService.GetParticipation(partyId, userId);
+	if (participant == null)
+	{
+		return Results.NotFound();
+	}
+
+	return Results.Ok(participant);
+});
 
 app.MapGet("/weatherforecast", () =>
 {
-    var forecast = Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
+	var forecast = Enumerable.Range(1, 5).Select(index =>
+			new WeatherForecast
+			(
+				DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
+				Random.Shared.Next(-20, 55),
+				summaries[Random.Shared.Next(summaries.Length)]
+			))
+		.ToArray();
+	return forecast;
 });
-app.MapGet("/blammo", (PartyService testService) =>
+
+app.MapGet("/api/photos/{id}", async (string id, PartyService partyService) =>
 {
-    var forecast = Enumerable.Range(1, 5).Select(index =>
-	    {
-		    var firstBlammo = testService.GetFirst();
-		    return new WeatherForecast
-		    (
-			    DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-			    Random.Shared.Next(-20, 55),
-			    firstBlammo.Blammo
-		    );
-	    })
-        .ToArray();
-    return forecast;
+	var photoBlob = await partyService.GetPhoto(id);
+	if (photoBlob == null)
+	{
+		return Results.NotFound();
+	}
+
+	return Results.File(photoBlob.Data, photoBlob.ContentType);
+});
+
+app.MapGet("/generateParty", async (PartyService partyService) =>
+{
+    try
+    {
+        var createdParties = await partyService.CreateParties();
+        return Results.Ok(createdParties);
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
+});
+
+app.MapGet("/addParticipant", async (PartyService partyService, [FromQuery] string partyId) =>
+{
+	try
+	{
+		var participant = await partyService.AddParticipant(partyId);
+		return Results.Ok(participant);
+	}
+	catch (Exception ex)
+	{
+		return Results.BadRequest(new { message = ex.Message });
+	}
 });
 
 app.MapDefaultEndpoints();
@@ -60,7 +99,5 @@ app.Run();
 
 record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
 {
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
+	public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
 }
-
-

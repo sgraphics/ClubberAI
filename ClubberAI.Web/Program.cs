@@ -3,13 +3,16 @@ using ClubberAI.Web;
 using Blazr.RenderState.Server;
 using ClubberAI.Web.Components;
 using AzureMapsControl.Components;
+using ClubberAI.ServiceDefaults;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add service defaults & Aspire components.
 builder.AddServiceDefaults();
-builder.Services.AddScoped<PartyService>();
+builder.Services.AddSingleton<PartyService>();
+builder.Services.AddSingleton<AiProxy>();
 builder.AddRedisOutputCache("cache");
+builder.Services.AddServiceDiscovery();
 
 
 builder.Services.AddBootstrapBlazor();
@@ -27,6 +30,12 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 builder.Services.AddHttpClient<WeatherApiClient>(client =>
+    {
+        // This URL uses "https+http://" to indicate HTTPS is preferred over HTTP.
+        // Learn more about service discovery scheme resolution at https://aka.ms/dotnet/sdschemes.
+        client.BaseAddress = new("https+http://apiservice");
+    });
+builder.Services.AddHttpClient<PartyApiClient>(client =>
     {
         // This URL uses "https+http://" to indicate HTTPS is preferred over HTTP.
         // Learn more about service discovery scheme resolution at https://aka.ms/dotnet/sdschemes.

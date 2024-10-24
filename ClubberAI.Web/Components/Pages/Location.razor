@@ -7,16 +7,19 @@
 @using Flurl.Http
 @using AzureMapsControl.Components.Atlas
 @using AzureMapsControl.Components.Popups
-@using System.Text.RegularExpressions
 @using BootstrapBlazor.Components
 @using Microsoft.AspNetCore.Components.Authorization
 @using System.Security.Claims
 @using ClubberAI.ServiceDefaults
 @using ClubberAI.ServiceDefaults.Model
+@using ClubberAI.ServiceDefaults.Services
+@using Microsoft.Extensions.ServiceDiscovery.Http
 @inject IBlazrRenderStateService RenderState
 @inject IJSRuntime JsRuntime
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider GetAuthenticationStateAsync
+@inject PartyService PartyService
+@inject PartyApiClient PartyApiClient
 
 <PageTitle>Clubber AI</PageTitle>
 
@@ -34,7 +37,7 @@
 		<div class="row">
 			<div class="col col-12 partypage">
 				<a href="javascript:void(0)" class="closebtn" @onclick="() => _activeParty = null">&#10005;</a>
-				<img class="flyer" src="@_existingParticipant.Photo" />
+				<img class="flyer" src="@PartyApiClient.GetBaseUrl()/@_existingParticipant.Photo" />
 				<h2>Avatar</h2>
 				<span><b>Name:</b> @_existingParticipant.Name</span>
 				<span><b>Hair style:</b>@_existingParticipant.HairStyle</span>
@@ -54,7 +57,7 @@
 				<a href="javascript:void(0)" class="closebtn" @onclick="() => _activeParty = null">&#10005;</a>
 				@if (!string.IsNullOrWhiteSpace(_newParticipant.Photo))
 				{
-					<img class="flyer" src="@_newParticipant.Photo" />
+					<img class="flyer" src="@PartyApiClient.GetBaseUrl()/@_newParticipant.Photo" />
 				}
 				<h2>Create an avatar for the party</h2>
 				<span><b>Name:</b></span>
@@ -98,7 +101,7 @@
 		<div class="row">
 			<div class="col col-12 partypage">
 				<a href="javascript:void(0)" class="closebtn" @onclick="() => _activeParty = null">&#10005;</a>
-				<img class="flyer" src="@_activeParty.Photo"/>
+				<img class="flyer" src="@PartyApiClient.GetBaseUrl()/@_activeParty.Photo"/>
 				<h2>@_activeParty.PartyName</h2>
 				<span><b>Access:</b> free</span>
 				<span><b>Time:</b> ongoing</span>
@@ -110,7 +113,7 @@
 				<p class="participantwidget">
 					@foreach (var somePhoto in _activeParty.SomePhotos)
 					{
-						<img src="@somePhoto" class="participantwidgetimage" />
+						<img src="@PartyApiClient.GetBaseUrl()/@somePhoto" class="participantwidgetimage" />
 					}
 					<span>@(_activeParty.ParticipantCount) Active Participants</span>
 				</p>
@@ -129,7 +132,7 @@
 
 
 <Modal @ref="modal">
-	<ModalDialog Title="Register/login" ShowCloseButton="false">
+	<ModalDialog Title="Join the fun" ShowCloseButton="false">
 
 		<BodyTemplate>
 			<div class="row">
@@ -145,11 +148,11 @@
 					<div class="alert alert-warning">@_error</div>
 				}
 				<span>Gender:</span>
-				<InputSelect @bind-Value="@NewGender">
+				<InputSelect @bind-Value="@NewGender" class="form-select">
 					<option value="M">Male</option>
 					<option value="F">Female</option>
 				</InputSelect>
-				<button value="Subscribe now">Login with Near</button>
+				<button value="Subscribe now" class="btn btn-primary">Login with Near</button>
 		</FooterTemplate>
 	</ModalDialog>
 
@@ -201,14 +204,13 @@
 
 	protected async Task LoadPins(Map map)
 	{
-		//TODO: Return list from backend. Something like this?
-		var parties = await $"{Navigation.BaseUri}api/Parties/getTodaysParties".GetJsonAsync<IList<Party>>();
+		var parties = await PartyService.GetParties();
 		_parties = parties.ToDictionary(x => x.Id);
 		foreach (var party in parties)
 		{
 			var point = GeoUtils.GenerateRandomPoint(Coordinates.Item1, Coordinates.Item2, 500);
 
-
+			string baseUrl = PartyApiClient.GetBaseUrl();
 			var htmlMarker = new HtmlMarker(
 				new HtmlMarkerOptions
 					{
@@ -227,11 +229,11 @@
 					<br/>
 		<span><b>Music style:</b> {party.MusicStyle}</span>
 		<span><b>Style:</b> {party.DressCode}</span>
-		<button onclick=""MapHelpers.openParty('{party.Id}');"">Open</button>
+		<button onclick=""MapHelpers.openParty('{party.Id}');"" class=""btn btn-primary"">Open</button>
 
 	</div>
 	<div class=""col-5 col"" >
-		<img class=""flyer"" src=""{party.PhotoThumb}"" />
+		<img class=""flyer"" src=""{baseUrl}/{party.PhotoThumb}"" />
 	</div>
 </div>",
 							Position = new Position(point.Item2, point.Item1),
@@ -306,9 +308,7 @@
 		_tries = 0;
 		try
 		{
-			
-			//TODO: Should check if already at the party?
-			_existingParticipant = await $"{Navigation.BaseUri}api/Parties/getParticipation?partyId={_activeParty.Id}".GetJsonAsync<Participant>();
+			_existingParticipant = await PartyService.GetParticipation(_activeParty.Id, WalletUser);
 		}
 		catch
 		{

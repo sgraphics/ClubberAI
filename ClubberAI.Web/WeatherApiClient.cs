@@ -7,7 +7,7 @@ public class WeatherApiClient(HttpClient httpClient, PartyService partyService)
     public async Task<WeatherForecast[]> GetWeatherAsync(int maxItems = 10, CancellationToken cancellationToken = default)
     {
         List<WeatherForecast>? forecasts = null;
-        var text = partyService.GetFirst().Blammo;
+        var text = partyService.GetFirst().Date;
         await foreach (var forecast in httpClient.GetFromJsonAsAsyncEnumerable<WeatherForecast>("/blammo", cancellationToken))
         {
             if (forecasts?.Count >= maxItems)
