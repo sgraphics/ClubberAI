@@ -20,6 +20,7 @@
 @inject AuthenticationStateProvider GetAuthenticationStateAsync
 @inject PartyService PartyService
 @inject PartyApiClient PartyApiClient
+@inject NearWalletService NearWallet
 
 <PageTitle>Clubber AI</PageTitle>
 
@@ -152,7 +153,7 @@
 					<option value="M">Male</option>
 					<option value="F">Female</option>
 				</InputSelect>
-				<button value="Subscribe now" class="btn btn-primary">Login with Near</button>
+				<button @onclick="LoginWithNear" class="btn btn-primary">Login with Near</button>
 		</FooterTemplate>
 	</ModalDialog>
 
@@ -188,17 +189,25 @@
 	[CascadingParameter]
 	private Task<AuthenticationState>? authenticationState { get; set; }
 
-	protected override void OnInitialized()
+	protected override async Task OnInitializedAsync()
 	{
 		objRef = DotNetObjectReference.Create(this);
+		await base.OnInitializedAsync();
 	}
 	protected override async Task OnAfterRenderAsync(bool firstRender)
 	{
 		if (firstRender)
 		{
 			objRef = DotNetObjectReference.Create(this);
+			
 			await JsRuntime.InvokeVoidAsync("MapHelpers.setDotNetHelper",
 				objRef);
+
+			// Add this check to ensure we're running on the client side
+			if (!RenderState.IsPreRender)
+			{
+				await NearWallet.InitNear();
+			}
 		}
 	}
 
@@ -365,14 +374,59 @@
 
 	private async Task TryLogin()
 	{
+		if (RenderState.IsPreRender)
+		{
+			return;
+		}
+
 		if (!string.IsNullOrWhiteSpace(WalletUser))
 		{
 			return;
 		}
-		var authstate = await GetAuthenticationStateAsync.GetAuthenticationStateAsync();
-		var user = authstate.User;
-		WalletUser = user.Identity.Name;
-		NewGender = user.Claims.FirstOrDefault(x => x.Type == ClaimTypes.Gender)?.Value;
+
+		bool isSignedIn = await NearWallet.IsSignedIn();
+		if (isSignedIn)
+		{
+			WalletUser = await NearWallet.GetAccountId();
+			try
+			{
+				var balance = await JsRuntime.InvokeAsync<string>("nearWallet.getTokenBalance");
+				await JsRuntime.InvokeVoidAsync("alert", $"Wallet: {WalletUser}\nBalance: {balance}");
+			}
+			catch (Exception ex)
+			{
+				_error = "Error fetching token balance: " + ex.Message;
+			}
+			StateHasChanged();
+		}
+		else
+		{
+			_error = "Not signed in with NEAR wallet.";
+		}
+	}
+
+	private async Task LoginWithNear()
+	{
+		if (RenderState.IsPreRender)
+		{
+			return;
+		}
+
+		try
+		{
+			// Trigger the sign-in process using the NEAR Wallet Selector
+			await NearWallet.SignIn();
+
+			// Attempt to log in and fetch the wallet user information
+			await TryLogin();
+
+			// Close the modal after successful login
+			await modal.Close();
+		}
+		catch (Exception ex)
+		{
+			_error = "Error logging in with NEAR: " + ex.Message;
+		}
 	}
 
 	private async Task RecreateAvatar()
@@ -386,3 +440,4 @@
 	}
 
 }
+

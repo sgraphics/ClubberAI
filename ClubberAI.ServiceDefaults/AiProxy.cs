@@ -1,9 +1,7 @@
 ﻿using System.ClientModel;
 using System.Text;
-using Azure;
 using Azure.AI.OpenAI;
 using Microsoft.Extensions.Configuration;
-using OpenAI;
 using OpenAI.Chat;
 using Console = System.Console;
 

@@ -11,6 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 builder.Services.AddSingleton<PartyService>();
 builder.Services.AddSingleton<AiProxy>();
+builder.Services.AddScoped<NearWalletService>();
 builder.AddRedisOutputCache("cache");
 builder.Services.AddServiceDiscovery();
 
