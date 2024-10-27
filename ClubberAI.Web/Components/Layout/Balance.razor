@@ -1,0 +1,90 @@
+﻿@rendermode InteractiveServer
+@using System.Numerics
+@using System.Reactive.Disposables
+@using ClubberAI.ServiceDefaults
+@inject NearWalletService NearWallet
+@inject BalanceService BalanceService
+@implements IDisposable
+@if (_balance.HasValue)
+{
+	<div class="balance">
+		<span>Balance: </span>
+		<span>@FormatBalance(_balance.Value, 18)</span>
+	</div>
+}
+else
+{
+	<a href="javascript:void(0);" @onclick="Login">Log-in</a>
+}
+
+@code
+{
+	private CompositeDisposable _disposables = new CompositeDisposable();
+
+	private BigInteger? _balance;
+
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (firstRender && _disposables.Count == 0)
+		{
+			_disposables.Add((await NearWallet.GetAccountIdOrWait())
+				.Subscribe(x =>
+				{
+					_disposables.Add(BalanceService
+						.ListenToBalanceChanges(x)
+						.Subscribe(
+							balance =>
+							{
+								_balance = balance;
+								InvokeAsync(StateHasChanged);
+							}));
+				}));
+
+			await Task.Delay(2000);
+			bool isSignedIn = await NearWallet.IsSignedIn();
+			if (isSignedIn)
+			{
+				await NearWallet.GetAccountId();
+			}
+		}
+		await base.OnAfterRenderAsync(firstRender);
+	}
+
+	public void Dispose()
+	{
+		_disposables?.Dispose();
+	}
+
+	private string FormatBalance(BigInteger balanceInWei, int decimals)
+	{
+		// Handle zero case
+		if (balanceInWei == 0) return "0.00 CLUB";
+
+		// Calculate divisor (10^decimals)
+		var divisor = BigInteger.Pow(10, decimals);
+
+		// Get whole number part
+		var whole = BigInteger.DivRem(balanceInWei, divisor, out var remainder);
+
+		// Calculate decimal part and pad with zeros if needed
+		var decimalPart = remainder * 100 / divisor; // Scale by 100 for 2 decimal places
+
+		return $"{whole}.{decimalPart:D2} CLUB";
+	}
+
+	private async Task Login()
+	{
+		bool isSignedIn = await NearWallet.IsSignedIn();
+		if (!isSignedIn)
+		{
+			await NearWallet.SignIn();
+		}
+		else
+		{
+			var walletUser = await NearWallet.GetAccountId();
+			
+			var balance = await NearWallet.GetTokenBalance();
+			BalanceService.UpdateBalance(walletUser, BigInteger.Parse(balance));
+		}
+	}
+}

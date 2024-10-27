@@ -1,6 +1,7 @@
 ﻿@page "/"
 @implements IDisposable
 @rendermode InteractiveServer
+@using System.Numerics
 @using Blazr.RenderState
 @using AzureMapsControl.Components.Map
 @using AzureMapsControl.Components.Markers
@@ -21,6 +22,8 @@
 @inject PartyService PartyService
 @inject PartyApiClient PartyApiClient
 @inject NearWalletService NearWallet
+@inject BalanceService BalanceService
+@inject AiProxy AiProxy
 
 <PageTitle>Clubber AI</PageTitle>
 
@@ -33,8 +36,9 @@
 <div class="activeParty @(_activeParty != null ? "active" : "notactive")">
 	@if (_existingParticipant != null && _activeParty != null)
 	{
-		<div class="partyback" style="background-image:url(@_activeParty.Photo)"></div>
-		<div class="partygradient" style="background: linear-gradient(0deg, rgba(21,21,21,1) 0%, rgba(0,0,0,0.840795693277311) 8%, rgba(78,78,78,0.5690870098039216) 54%, rgba(0,0,0,0.26376488095238093) 92%, @(_activeParty.PrimaryColor)77 100%)"></div>
+		<div class="partywall"></div>
+		<div class="partyback" style="background-image:url(@PartyApiClient.GetBaseUrl()/@_activeParty.Photo)"></div>
+		<div class="partygradient" style="background: linear-gradient(0deg, @(_activeParty.PrimaryColor)77 0%,#ffffff77 50%,#ffffff77 100%)"></div>
 		<div class="row">
 			<div class="col col-12 partypage">
 				<a href="javascript:void(0)" class="closebtn" @onclick="() => _activeParty = null">&#10005;</a>
@@ -51,8 +55,9 @@
 	}
 	else if (_newParticipant != null && _activeParty != null)
 	{
-		<div class="partyback" style="background-image:url(@_activeParty.Photo)"></div>
-		<div class="partygradient" style="background: linear-gradient(0deg, rgba(21,21,21,1) 0%, rgba(0,0,0,0.840795693277311) 8%, rgba(78,78,78,0.5690870098039216) 54%, rgba(0,0,0,0.26376488095238093) 92%, @(_activeParty.PrimaryColor)77 100%)"></div>
+		<div class="partywall"></div>
+		<div class="partyback" style="background-image:url(@PartyApiClient.GetBaseUrl()/@_activeParty.Photo)"></div>
+		<div class="partygradient" style="background: linear-gradient(0deg, @(_activeParty.PrimaryColor)77 0%,#ffffff77 50%,#ffffff77 100%)"></div>
 		<div class="row">
 			<div class="col col-12 partypage">
 				<a href="javascript:void(0)" class="closebtn" @onclick="() => _activeParty = null">&#10005;</a>
@@ -62,43 +67,44 @@
 				}
 				<h2>Create an avatar for the party</h2>
 				<span><b>Name:</b></span>
-				<input type="text" @bind=@_newParticipant.Name placeholder="E.g. Alex M" />
+				<input type="text" class="form-control" @bind=@_newParticipant.Name placeholder="E.g. Alex M" />
 				<span><b>Hair style:</b></span>
-				<input type="text" @bind=@_newParticipant.HairStyle placeholder="E.g. Blonde long/Black short curly" />
+				<input type="text" class="form-control" @bind=@_newParticipant.HairStyle placeholder="E.g. Blonde long/Black short curly" />
 				<span><b>Ethnicity:</b></span>
-				<input type="text" @bind=@_newParticipant.Ethnicity placeholder="E.g. Black/White/Asian" />
+				<input type="text" class="form-control" @bind=@_newParticipant.Ethnicity placeholder="E.g. Black/White/Asian" />
 				<span><b>Gender:</b></span>
-				<select value="@NewGender" disabled="disabled">
+				<select class="form-select" value="@NewGender" disabled="disabled">
 					<option value="M">Male</option>
 					<option value="F">Female</option>
 				</select>
 				@if (_busy)
 				{
-					<button disabled="disabled" class="btn-secondary">Generating...</button>
+					<button disabled="disabled" class="btn btn-secondary">Generating...</button>
 				}
 				else if (string.IsNullOrWhiteSpace(_newParticipant.Photo))
 				{
-					<button @onclick="Generate">Generate photo</button>
+					<button @onclick="Generate" class="btn btn-primary">Generate photo</button>
 				}
 				else
 				{
 					@if (_tries >= 3)
 					{
-						<button disabled="disabled" class="btn-secondary">Regenerate</button>
+						<button disabled="disabled" class="btn btn-secondary">Regenerate</button>
 					}
 					else
 					{
-						<button @onclick="Generate" class="btn-secondary">Regenerate (@(3 - _tries) left)</button>
+						<button @onclick="Generate" class="btn btn-secondary">Regenerate (@(3 - _tries) left)</button>
 					}
-					<button @onclick="Chat">Start mingling</button>
+					<button @onclick="Chat" class="btn btn-primary">Start mingling</button>
 				}
 			</div>
 		</div>
 	}
 	else if (_activeParty != null)
 	{
-		<div class="partyback" style="background-image:url(@_activeParty.Photo)"></div>
-		<div class="partygradient" style="background: linear-gradient(0deg, rgba(21,21,21,1) 0%, rgba(0,0,0,0.840795693277311) 8%, rgba(78,78,78,0.5690870098039216) 54%, rgba(0,0,0,0.26376488095238093) 92%, @(_activeParty.PrimaryColor)77 100%)"></div>
+		<div class="partywall"></div>
+		<div class="partyback" style="background-image:url(@PartyApiClient.GetBaseUrl()/@_activeParty.Photo)"></div>
+		<div class="partygradient" style="background: linear-gradient(0deg, @(_activeParty.PrimaryColor)77 0%,#ffffff77 50%,#ffffff77 100%)"></div>
 		<div class="row">
 			<div class="col col-12 partypage">
 				<a href="javascript:void(0)" class="closebtn" @onclick="() => _activeParty = null">&#10005;</a>
@@ -119,7 +125,7 @@
 					<span>@(_activeParty.ParticipantCount) Active Participants</span>
 				</p>
 				
-				<button @onclick="Join">Attend @_activeParty.PartyName</button>
+				<button @onclick="Join" class="btn btn-primary">Attend @_activeParty.PartyName</button>
 			</div>
 		</div>
 	}
@@ -199,7 +205,7 @@
 		if (firstRender)
 		{
 			objRef = DotNetObjectReference.Create(this);
-			
+
 			await JsRuntime.InvokeVoidAsync("MapHelpers.setDotNetHelper",
 				objRef);
 
@@ -321,11 +327,11 @@
 		}
 		catch
 		{
-			
+
 		}
 		if (_newParticipant == null)
 		{
-			_newParticipant = new Participant { Id = _activeParty.Id, Age = "24", Gender = NewGender };
+			_newParticipant = new Participant { PartyId = _activeParty.Id, Age = "24", Gender = NewGender, User = WalletUser };
 		}
 	}
 
@@ -340,12 +346,7 @@
 				await JsRuntime.InvokeVoidAsync("alert", "Please fill all fields");
 				return;
 			}
-
-			//TODO: Generate photo for participant. Openai
-			var photo = await $"{Navigation.BaseUri}api/Parties/generatePhoto".PostJsonAsync(_newParticipant).ReceiveJson<Photo>();
-			
-			_newParticipant.Photo = photo.Url;
-			_newParticipant.PhotoThumb = photo.ThumbUrl;
+			await PartyService.GeneratePhotos(_newParticipant);
 		}
 		finally
 		{
@@ -360,16 +361,10 @@
 			Navigation.NavigateTo("/chat?party=" + _activeParty.Id);
 			return;
 		}
-		//TODO: set as participating
-		var photo = await $"{Navigation.BaseUri}api/Parties/participate".PostJsonAsync(_newParticipant);
-		if (photo.ResponseMessage.IsSuccessStatusCode)
-		{
-			Navigation.NavigateTo("/chat?party=" + _activeParty.Id);
-		}
-		else
-		{
-			await JsRuntime.InvokeVoidAsync("alert", "Error registering participation, please try again");
-		}
+
+		await PartyService.Save(_newParticipant);
+
+		Navigation.NavigateTo("/chat?party=" + _activeParty.Id);
 	}
 
 	private async Task TryLogin()
@@ -390,8 +385,8 @@
 			WalletUser = await NearWallet.GetAccountId();
 			try
 			{
-				var balance = await JsRuntime.InvokeAsync<string>("nearWallet.getTokenBalance");
-				await JsRuntime.InvokeVoidAsync("alert", $"Wallet: {WalletUser}\nBalance: {balance}");
+				var balance = await NearWallet.GetTokenBalance();
+				BalanceService.UpdateBalance(WalletUser, BigInteger.Parse(balance));
 			}
 			catch (Exception ex)
 			{

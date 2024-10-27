@@ -1,13 +1,18 @@
+using System.Reactive.Linq;
 using Microsoft.JSInterop;
+using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 using System.Threading.Tasks;
 
 public class NearWalletService
 {
     private readonly IJSRuntime _jsRuntime;
+    private readonly ProtectedSessionStorage _sessionStorage;
+    private const string WALLET_KEY = "walletId";
 
-    public NearWalletService(IJSRuntime jsRuntime)
+    public NearWalletService(IJSRuntime jsRuntime, ProtectedSessionStorage sessionStorage)
     {
         _jsRuntime = jsRuntime;
+        _sessionStorage = sessionStorage;
     }
 
     public async Task InitNear()
@@ -23,6 +28,7 @@ public class NearWalletService
     public async Task SignOut()
     {
         await _jsRuntime.InvokeVoidAsync("nearWallet.signOut");
+        await _sessionStorage.DeleteAsync(WALLET_KEY);
     }
 
     public async Task<bool> IsSignedIn()
@@ -32,6 +38,47 @@ public class NearWalletService
 
     public async Task<string> GetAccountId()
     {
-        return await _jsRuntime.InvokeAsync<string>("nearWallet.getAccountId");
+        var accountId = await _jsRuntime.InvokeAsync<string>("nearWallet.getAccountId");
+        if (!string.IsNullOrEmpty(accountId))
+        {
+            await _sessionStorage.SetAsync(WALLET_KEY, accountId);
+        }
+        return accountId;
+    }
+
+    public async Task<IObservable<string>> GetAccountIdOrWait()
+    {
+        // First try to get from storage
+        try
+        {
+            var result = await _sessionStorage.GetAsync<string>(WALLET_KEY);
+            if (result.Success && !string.IsNullOrEmpty(result.Value))
+            {
+                return Observable.Return(result.Value);
+            }
+        }
+        catch { }
+
+        // If not in storage, poll every second until we find it
+        return Observable.Timer(TimeSpan.Zero, TimeSpan.FromSeconds(1))
+            .SelectMany(async _ =>
+            {
+                try
+                {
+                    var result = await _sessionStorage.GetAsync<string>(WALLET_KEY);
+                    return result.Success ? result.Value : null;
+                }
+                catch
+                {
+                    return null;
+                }
+            })
+            .Where(x => !string.IsNullOrEmpty(x))
+            .Take(1);
+    }
+
+    public async Task<string> GetTokenBalance()
+    {
+        return await _jsRuntime.InvokeAsync<string>("nearWallet.getTokenBalance");
     }
 }

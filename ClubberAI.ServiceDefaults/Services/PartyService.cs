@@ -57,7 +57,7 @@ namespace ClubberAI.ServiceDefaults.Services
 
 			party.Participants!.Add(participant);
 
-			await CreatePhotosAndStoreParticipant(participant);
+			await GeneratePhotos(participant);
 
 			var update = Builders<Party>.Update
 				.Set(p => p.Participants, party.Participants);
@@ -76,8 +76,9 @@ namespace ClubberAI.ServiceDefaults.Services
 			{
 				var participants = await _participantCollection.FindSync<Participant>(x => x.PartyId == party.Id).ToListAsync();
 				party.ParticipantCount = participants.Count;
-				party.SomePhotos = participants.OrderBy(x => Guid.NewGuid()).Take(3).Select(x => x.PhotoThumb!).ToList();
-				party.SomePhotos = party.SomePhotos.ToList();
+				party.SomePhotos = participants
+					.OrderBy(x => Guid.NewGuid()).Take(3).Select(x => x.PhotoThumb!)
+					.ToList();
 				party.Participants = null;
 			}
 			return parties;
@@ -147,7 +148,7 @@ The answer need to be in json array format (to support multiple parties).
 
 				foreach (var participant in participants.Where(x => x.PartyId == party.Id))
 				{
-					await CreatePhotosAndStoreParticipant(participant);
+					await GeneratePhotos(participant);
 				}
 			}
 
@@ -159,7 +160,7 @@ The answer need to be in json array format (to support multiple parties).
 		}
 
 
-		private async Task CreatePhotosAndStoreParticipant(Participant participant)
+		public async Task GeneratePhotos(Participant participant, bool store = true)
 		{
 			string participantDescription;
 			if (!string.IsNullOrWhiteSpace(participant.Description))
@@ -181,7 +182,10 @@ The answer need to be in json array format (to support multiple parties).
 			var photo = await UploadPhoto(image);
 			participant.Photo = photo.Url;
 			participant.PhotoThumb = photo.ThumbUrl;
-			_participantCollection.InsertOneAsync(participant);
+			if (store)
+			{
+				await _participantCollection.InsertOneAsync(participant);
+			}
 		}
 
 		private async Task CreatePhotos(Party participant)
@@ -267,6 +271,11 @@ The answer need to be in json array format (to support multiple parties).
 				_logger?.LogError(e, "Thumbnail generation failed: " + e.Message);
 				return null;
 			}
+		}
+
+		public async Task Save(Participant newParticipant)
+		{
+			await _participantCollection.InsertOneAsync(newParticipant);
 		}
 	}
 }

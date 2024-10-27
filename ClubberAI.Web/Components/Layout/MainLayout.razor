@@ -1,4 +1,7 @@
-﻿@inherits LayoutComponentBase
+﻿@using System.Numerics
+@using System.Reactive.Disposables
+@using ClubberAI.ServiceDefaults
+@inherits LayoutComponentBase
 @inject NavigationManager NavManager
 
 <div class="page pagedetail@(Page())">
@@ -8,8 +11,8 @@
     
     <main class="maindetail@(Page())">
 	    <div class="top-row px-4">
-            <a href="/" class="logo"><img src="/img/logo.svg" alt="Clubber logo" /></a>
-		    <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+		    <a href="/" class="logo"><img src="/img/logo.svg" alt="Clubber logo" /></a>
+		    <Balance />
 	    </div>
 
 		<article class="content px-4">
@@ -34,4 +37,5 @@
     {
         return NavManager.Uri.Substring(NavManager.BaseUri.Length - 1).Replace("/", string.Empty);
     }
+
 }
