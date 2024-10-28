@@ -1,0 +1,58 @@
+.radio-player {
+    z-index: 100000;
+    padding: 20px;
+    background: #f5f5f5;
+    border-radius: 8px;
+    position: absolute;
+    bottom: 90px;
+}
+
+.channel-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin: 20px 0;
+    height:60vh;
+}
+
+.category {
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 15px;
+}
+
+.group {
+    margin: 10px 0;
+}
+
+.channels {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.channel-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.channel-btn:hover {
+    background: #e0e0e0;
+}
+
+.channel-btn.active {
+    background: #007bff;
+    color: white;
+}
+
+.controls {
+    margin: 20px 0;
+}
+
+audio {
+    width: 100%;
+    margin-top: 20px;
+}

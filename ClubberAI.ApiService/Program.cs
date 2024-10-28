@@ -12,6 +12,7 @@ builder.AddMongoDBClient("mongodb");
 // Add services to the container.
 builder.Services.AddProblemDetails();
 builder.Services.AddSingleton<PartyService>();
+builder.Services.AddSingleton<MusicService>();
 builder.Services.AddSingleton<AiProxy>();
 
 var app = builder.Build();

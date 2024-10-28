@@ -14,15 +14,17 @@ namespace ClubberAI.ServiceDefaults.Services
 	public class PartyService
 	{
 		private readonly ILogger<PartyService> _logger;
-		private readonly AiProxy _aiProxy;
+        private readonly MusicService _musicService;
+        private readonly AiProxy _aiProxy;
 		private readonly IMongoCollection<Party> _partyCollection;
 		private readonly IMongoCollection<Participant> _participantCollection;
 		private readonly IMongoCollection<PhotoBlob> _photoCollection;
 
-		public PartyService(IConfiguration config, AiProxy aiProxy, ILogger<PartyService> logger)
+		public PartyService(IConfiguration config, AiProxy aiProxy, ILogger<PartyService> logger, MusicService musicService)
 		{
 			_logger = logger;
-			_aiProxy = aiProxy;
+            _musicService = musicService;
+            _aiProxy = aiProxy;
 			// Access the connection string from the ConnectionStrings section
 			var connectionString = config.GetConnectionString("mongodb");
 			var client = new MongoClient(connectionString);
@@ -93,13 +95,16 @@ namespace ClubberAI.ServiceDefaults.Services
 
 		public async Task<ActionResult> CreateParties()
 		{
-			var date = DateTimeOffset.Now.AddDays(1).ToString("yy-MM-dd");
+			var date = DateTimeOffset.Now
+                //.AddDays(1)
+                .ToString("yy-MM-dd");
 			var parties = new List<Party>();
 			var participants = new List<Participant>();
 
 			parties = await _partyCollection.FindSync<Party>(x => x.Date == date).ToListAsync();
+			var channels = await _musicService.GetChannelsForAi();
 
-			for (var i = 0; i < 1; i++)
+            for (var i = 0; i < 1; i++)
 			{
 				var aiMessageRecords = new List<AiMessageRecord>
 				{
@@ -114,7 +119,9 @@ The answer need to be in json array format (to support multiple parties).
 6) participants: list of participants and their description. The participant should be of legal age 19-27.  For example ""participants"" : [ { ""name"" : ""Jill R"", ""gender"" : ""F"", ""age"":""25"", ""photoPrompt"" : ""<FULL PROMPT HERE>"", ""chattingStyle"" :""proper writing, well articulated""  } ]. ""chattingStyle"" should be a brief description of chatting style. For example ""no capital letters, lots of slang like 'how u doin'"" or ""mostly proper, but makes a few spelling mistakes 'Hi, how are you dnoing?'"". The ""photoPrompt"" is a description for DALL-E to create a photo of that specific participants at the specific party: the background, clothing, vibe etc should reflect the party atmosphere, there ofcourse should be other people, partygoers, in the background and the participant should be sexy, enticing, flirty, handsom/cute. The ""photoPrompt"" can optionally detail the participant doing something like holding drink, dancing, showing some had sign, etc.
 7) primaryColor: in hex format, something like #123AAB (similar to theme of the image)
 8) description: 350 character description about the party. It should detail the premise, what will happen, special guests, special events etc. It should feature some over the top performance that makes it sound like it will be the best party ever.
-9) flyerPrompt: input prompt to generate image of the party flyer using DALL-E. The flyer is an image of the party. It takes input details about an event or party, including theme, vibe, music style, and target audience to produce a textual description that can be used by DALL-E to create an image. There should be empty space in it for writing additional info - large area for heading. There should be one word on the flyer that describes the event or is a word from the title of the event. The image should be simple and impactful. It should be minimalistic and tasteful with one or two large objects as focal point. Objects can be abstract illustrations or actual real world objects and scenes. Never ask the human more details, try to design as best as you can with as much information as you have. Do not describe the flyer, let the image do the talking. If needed you can browse the internet for specific information - for example if someone mentiones some fact about the party you do not understand. Do NOT say to Dall-E that we want to create flyers or ads or posters - ALWAYS and ONLY refer to the end result as ""image"" . Do not mention artifacts like flyer, ad, poster, illustration, drawing - try to describe the content differently while only referring to an ""image""."),
+9) flyerPrompt: input prompt to generate image of the party flyer using DALL-E. The flyer is an image of the party. It takes input details about an event or party, including theme, vibe, music style, and target audience to produce a textual description that can be used by DALL-E to create an image. There should be empty space in it for writing additional info - large area for heading. There should be one word on the flyer that describes the event or is a word from the title of the event. The image should be simple and impactful. It should be minimalistic and tasteful with one or two large objects as focal point. Objects can be abstract illustrations or actual real world objects and scenes. Never ask the human more details, try to design as best as you can with as much information as you have. Do not describe the flyer, let the image do the talking. If needed you can browse the internet for specific information - for example if someone mentiones some fact about the party you do not understand. Do NOT say to Dall-E that we want to create flyers or ads or posters - ALWAYS and ONLY refer to the end result as ""image"" . Do not mention artifacts like flyer, ad, poster, illustration, drawing - try to describe the content differently while only referring to an ""image"".
+10) musicChannel: channel id, something like 1.0.1. Please select a suitable channel from these options:
+" + channels),
 				};
 				if (parties.Any())
 				{

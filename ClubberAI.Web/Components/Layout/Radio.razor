@@ -1,0 +1,81 @@
+@using ClubberAI.ServiceDefaults.Model
+@using ClubberAI.ServiceDefaults.Services
+@rendermode InteractiveServer
+@inject IJSRuntime JS
+@inject MusicService MusicService
+
+<div class="radio-player">
+    <h3>Location Radio</h3>
+    
+    @if (!_isInitialized)
+    {
+        <button class="start-btn" @onclick="InitializeRadio">Start Radio</button>
+    }
+    else if (_channels?.data?.categories != null)
+    {
+        <div class="channel-list">
+            @foreach (var category in _channels.data.categories)
+            {
+                <div class="category">
+                    <h4>@category.name</h4>
+                    @foreach (var group in category.groups)
+                    {
+                        <div class="group">
+                            <h5>@group.name</h5>
+                            <div class="channels">
+                                @foreach (var channel in group.channels)
+                                {
+                                    <button class="channel-btn @(channel.playlist == _currentPlaylist ? "active" : "")" 
+                                            @onclick="() => PlayChannel(channel)">
+                                        @channel.name
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        <div class="controls">
+            <select @bind="@_intensity">
+                <option value="Low">Low Intensity</option>
+                <option value="Medium">Medium Intensity</option>
+                <option value="High">High Intensity</option>
+            </select>
+        </div>
+    }
+    else
+    {
+        <p>Loading channels...</p>
+    }
+
+    @if (!string.IsNullOrEmpty(_currentStream))
+    {
+        <audio id="radioPlayer" src="@_currentStream" controls autoplay></audio>
+    }
+</div>
+
+@code {
+    private GetChannelsResponse _channels;
+    private string _currentStream;
+    private string _currentPlaylist;
+    private bool _isInitialized = false;
+    private string Pat;
+    private MubertIntensity _intensity = MubertIntensity.High;
+
+    private async Task InitializeRadio()
+    {
+	    Pat = await MusicService.InitializeMubertAsync();
+        _channels = await MusicService.GetChannelsAsync();
+        _isInitialized = true;
+        StateHasChanged();
+    }
+
+    private async Task PlayChannel(Channel channel)
+    {
+        _currentStream = $"https://stream.mubert.com/b2b/v2?playlist={channel.playlist}&pat={Pat}&intensity={_intensity.ToString().ToLower()}";
+        _currentPlaylist = channel.playlist;
+        StateHasChanged();
+    }
+}

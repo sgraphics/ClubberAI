@@ -67,6 +67,10 @@ namespace ClubberAI.ServiceDefaults.Model
 
 		[BsonIgnore]
 		public List<string> SomePhotos { get; set; } = new();
+
+		[BsonElement("musicChannel")]
+		[JsonPropertyName("musicChannel")]
+		public string? MusicChannel { get; set; }
 	}
 
 	public class Photo : EntityBase
