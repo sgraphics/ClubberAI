@@ -270,3 +270,56 @@ p.participantwidget img {
 {
     width:130px;
 }
+.splashpop .modal-content {
+    background-image: url('/img/popback.png');
+    background-position: center;
+    background-size: cover;
+    aspect-ratio: 10/14;
+    border-radius: 30px;
+    border:0px;
+}
+
+.splashpop {
+    left: 3px;
+    margin-top:47px;
+    box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.2);
+    border-radius: 30px;
+    position: relative;
+    border:0px;
+}
+.splashpop button {
+    border-radius: 50px;
+    font-size: 1.6rem;
+    padding:10px 30px;
+    color:black;
+    background-color: white !important;
+}
+.splashpop button:hover {
+    background-color: #ff6a22 !important;
+    color:white;
+}
+.splashpop .splashfooter {
+    position: absolute;
+    bottom: 40px;
+    left:20px;
+}
+.splashpop .splashbody {
+    padding:10px;
+    color:black !important;
+}
+h1 {
+    font-family: 'Sora', sans-serif;
+    font-weight: 800; /* Extra Bold */
+}
+.splashbody {
+    font-size: min(1.5rem, 5vw);
+}
+.splashpop .splashbody h1 {
+    font-size: min(3.5rem, 9vw);
+}
+.splashbody ol {
+    padding-left: 30px;
+}
+.splashbody p {
+    padding-top: min(40px, 4vw);
+}

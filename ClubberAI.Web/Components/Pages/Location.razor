@@ -14,6 +14,7 @@
 @using ClubberAI.ServiceDefaults
 @using ClubberAI.ServiceDefaults.Model
 @using ClubberAI.ServiceDefaults.Services
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
 @using Microsoft.Extensions.ServiceDiscovery.Http
 @inject IBlazrRenderStateService RenderState
 @inject IJSRuntime JsRuntime
@@ -24,14 +25,10 @@
 @inject NearWalletService NearWallet
 @inject BalanceService BalanceService
 @inject AiProxy AiProxy
+@inject ProtectedLocalStorage LocalStorage
 
 <PageTitle>Clubber AI</PageTitle>
 
-@if (RenderState.IsPreRender)
-{
-	<Splash />
-	return;
-}
 
 <div class="activeParty @(_activeParty != null ? "active" : "notactive")">
 	@if (_existingParticipant != null && _activeParty != null)
@@ -150,19 +147,40 @@
 			</div>
 		</BodyTemplate>
 		<FooterTemplate>
-				@if (!string.IsNullOrWhiteSpace(_error))
-				{
-					<div class="alert alert-warning">@_error</div>
-				}
-				<span>Gender:</span>
-				<InputSelect @bind-Value="@NewGender" class="form-select">
-					<option value="M">Male</option>
-					<option value="F">Female</option>
-				</InputSelect>
-				<button @onclick="LoginWithNear" class="btn btn-primary">Login with Near</button>
+			@if (!string.IsNullOrWhiteSpace(_error))
+			{
+				<div class="alert alert-warning">@_error</div>
+			}
+			<span>Gender:</span>
+			<InputSelect @bind-Value="@NewGender" class="form-select">
+				<option value="M">Male</option>
+				<option value="F">Female</option>
+			</InputSelect>
+			<button @onclick="LoginWithNear" class="btn btn-primary">Login with Near</button>
 		</FooterTemplate>
 	</ModalDialog>
 
+</Modal>
+
+<Modal @ref="splashPop">
+	<ModalDialog ShowCloseButton="false" ShowFooter="false" ShowHeader="false" Class="splashpop">
+		<BodyTemplate>
+			<div class="splashbody">
+				<h1>Meet new people*</h1>
+				<p>
+					How does Clubber work?
+				</p>
+				<ol>
+					<li>Attend virtual parties near you</li>
+					<li>Meet and chat with other people*</li>
+					<li>Guess if they are human or AI to earn <b>CLUB tokens</b>!</li>
+				</ol>
+			</div>
+			<div class="splashfooter">
+				<button class="btn btn-primary" @onclick="CloseSplash">Explore &rarr;</button>
+			</div>
+		</BodyTemplate>
+	</ModalDialog>
 </Modal>
 
 @code {
@@ -171,8 +189,9 @@
 
 	private int _tries;
 	private string? _error = null;
-
+	
 	private Modal modal;
+	private Modal splashPop;
 
 	private string? NewGender = "M";
 
@@ -208,6 +227,11 @@
 
 			await JsRuntime.InvokeVoidAsync("MapHelpers.setDotNetHelper",
 				objRef);
+			var splashResult = await LocalStorage.GetAsync<string>("splash");
+			//if (!splashResult.Success || splashResult.Value != "false")
+			//{
+				await splashPop.Show();
+			//}
 
 			// Add this check to ensure we're running on the client side
 			if (!RenderState.IsPreRender)
@@ -432,6 +456,12 @@
 			_existingParticipant = null;
 			await Join();
 		}
+	}
+
+	private async Task CloseSplash()
+	{
+		await splashPop.Close();
+		await LocalStorage.SetAsync("splash", "false");
 	}
 
 }
