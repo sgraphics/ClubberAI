@@ -3,8 +3,10 @@
 @rendermode InteractiveServer
 @inject IJSRuntime JS
 @inject MusicService MusicService
+@inject AudioPlayerService AudioPlayerService
+@implements IDisposable
 
-<div class="radio-player">
+<div class="radio-player" style="display:none">
     <h3>Location Radio</h3>
     
     @if (!_isInitialized)
@@ -26,7 +28,7 @@
                                 @foreach (var channel in group.channels)
                                 {
                                     <button class="channel-btn @(channel.playlist == _currentPlaylist ? "active" : "")" 
-                                            @onclick="() => PlayChannel(channel)">
+                                            @onclick="() => PlayChannel(channel.playlist)">
                                         @channel.name
                                     </button>
                                 }
@@ -50,19 +52,65 @@
         <p>Loading channels...</p>
     }
 
-    @if (!string.IsNullOrEmpty(_currentStream))
-    {
-        <audio id="radioPlayer" src="@_currentStream" controls autoplay></audio>
-    }
 </div>
+
+<span class="audio-controls">
+    @if (_audioStatus == "playing")
+    {
+        <i class="fas fa-stop" @onclick="StopAudio"></i>
+    }
+    else if (_audioStatus == "waiting")
+    {
+        <i class="fas fa-sync-alt fa-spin"></i>
+    }
+    else if (_audioStatus == "pause")
+    {
+        <i class="fas fa-play" @onclick="ResumeAudio"></i>
+    }
+    @if (_isMuted)
+    {
+        <i class="fas fa-volume-mute" @onclick="ToggleMute"></i>
+    }
+    else
+    {
+        <i class="fas fa-volume-up" @onclick="ToggleMute"></i>
+    }
+</span>
+<audio id="radioPlayer" src="@(_currentStream ?? string.Empty)" autoplay></audio>
 
 @code {
     private GetChannelsResponse _channels;
     private string _currentStream;
     private string _currentPlaylist;
     private bool _isInitialized = false;
-    private string Pat;
+    private string? Pat;
     private MubertIntensity _intensity = MubertIntensity.High;
+    private IDisposable _subscription;
+    private string _audioStatus = "";
+    private DotNetObjectReference<Radio> objRef;
+    private bool _isMuted = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        objRef = DotNetObjectReference.Create(this);
+        await base.OnInitializedAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var stream = await AudioPlayerService.GetPlaylistStream();
+            _subscription = stream.Subscribe(async playlist =>
+            {
+                await PlayChannel(playlist);
+            });
+
+            // Pass the component reference to JS
+            await JS.InvokeVoidAsync("nearWallet.setupAudioEvents", objRef);
+        }
+        await base.OnAfterRenderAsync(firstRender);
+    }
 
     private async Task InitializeRadio()
     {
@@ -72,10 +120,51 @@
         StateHasChanged();
     }
 
-    private async Task PlayChannel(Channel channel)
+    private async Task PlayChannel(string playlist)
     {
-        _currentStream = $"https://stream.mubert.com/b2b/v2?playlist={channel.playlist}&pat={Pat}&intensity={_intensity.ToString().ToLower()}";
-        _currentPlaylist = channel.playlist;
-        StateHasChanged();
+	    if (!string.IsNullOrWhiteSpace(playlist))
+	    {
+		    _audioStatus = "waiting";
+	    }
+	    else
+	    {
+		    await StopAudio();
+		    return;
+	    }
+	    Pat ??= await MusicService.InitializeMubertAsync();
+        _currentStream = $"https://stream.mubert.com/b2b/v2?playlist={playlist}&pat={Pat}&intensity={_intensity.ToString().ToLower()}";
+        _currentPlaylist = playlist;
+        await AudioPlayerService.Play(playlist);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        _subscription?.Dispose();
+        objRef?.Dispose();
+        JS.InvokeVoidAsync("nearWallet.cleanupAudioEvents");
+    }
+
+    [JSInvokable]
+    public async Task OnAudioStateChange(string state)
+    {
+        _audioStatus = state;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task StopAudio()
+    {
+        await JS.InvokeVoidAsync("stopAudio");
+    }
+
+    private async Task ToggleMute()
+    {
+        _isMuted = await JS.InvokeAsync<bool>("toggleMute");
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ResumeAudio()
+    {
+        await JS.InvokeVoidAsync("resumeAudio");
     }
 }

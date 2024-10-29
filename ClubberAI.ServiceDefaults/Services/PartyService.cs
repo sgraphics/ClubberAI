@@ -110,7 +110,7 @@ namespace ClubberAI.ServiceDefaults.Services
 				{
 					new(AiMessageRole.System, @"GPT that generates party descriptions. these are parties happening all around the city in different places. All parties are 18+ and happen in the evening (end time based on party). Parties should be interesting, some over the top, sexy, promising good time and chance to meet someone special. They can range from glamorous and expensive to student parties in abandoned dormitories.
 
-The answer need to be in json array format (to support multiple parties).
+The answer need to be in json array format (to support multiple parties) with these required properties:
 1) partyName
 2) musicStyle
 3) location: free description

@@ -13,6 +13,7 @@ builder.Services.AddSingleton<PartyService>();
 builder.Services.AddSingleton<AiProxy>();
 builder.Services.AddSingleton<BalanceService>();
 builder.Services.AddScoped<NearWalletService>();
+builder.Services.AddScoped<AudioPlayerService>();
 builder.Services.AddSingleton<MusicService>();
 builder.AddRedisOutputCache("cache");
 builder.Services.AddServiceDiscovery();

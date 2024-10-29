@@ -8,8 +8,8 @@
 @if (_balance.HasValue)
 {
 	<div class="balance">
-		<span>Balance: </span>
-		<span>@FormatBalance(_balance.Value, 18)</span>
+		<span>CLUB </span>
+		<span class="balanceValue">@FormatBalance(_balance.Value, 18)</span>
 	</div>
 }
 else
@@ -58,7 +58,7 @@ else
 	private string FormatBalance(BigInteger balanceInWei, int decimals)
 	{
 		// Handle zero case
-		if (balanceInWei == 0) return "0.00 CLUB";
+		if (balanceInWei == 0) return "0.00";
 
 		// Calculate divisor (10^decimals)
 		var divisor = BigInteger.Pow(10, decimals);
@@ -69,7 +69,7 @@ else
 		// Calculate decimal part and pad with zeros if needed
 		var decimalPart = remainder * 100 / divisor; // Scale by 100 for 2 decimal places
 
-		return $"{whole}.{decimalPart:D2} CLUB";
+		return $"{whole}.{decimalPart:D2}";
 	}
 
 	private async Task Login()

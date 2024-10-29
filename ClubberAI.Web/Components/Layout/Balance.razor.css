@@ -1,0 +1,13 @@
+.balance {
+    display: flex;
+    align-items: center;
+    gap:3px;
+}
+
+.balanceValue {
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block; /* or block */
+}

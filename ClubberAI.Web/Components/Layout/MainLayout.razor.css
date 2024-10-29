@@ -107,3 +107,9 @@ main {
     position:absolute;
     left:2vw;
 }
+.rightdrawer {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px; /* Optional: Adds space between items */
+}

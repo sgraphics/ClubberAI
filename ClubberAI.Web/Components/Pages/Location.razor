@@ -5,17 +5,14 @@
 @using Blazr.RenderState
 @using AzureMapsControl.Components.Map
 @using AzureMapsControl.Components.Markers
-@using Flurl.Http
 @using AzureMapsControl.Components.Atlas
 @using AzureMapsControl.Components.Popups
 @using BootstrapBlazor.Components
 @using Microsoft.AspNetCore.Components.Authorization
-@using System.Security.Claims
 @using ClubberAI.ServiceDefaults
 @using ClubberAI.ServiceDefaults.Model
 @using ClubberAI.ServiceDefaults.Services
 @using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
-@using Microsoft.Extensions.ServiceDiscovery.Http
 @inject IBlazrRenderStateService RenderState
 @inject IJSRuntime JsRuntime
 @inject NavigationManager Navigation
@@ -24,11 +21,10 @@
 @inject PartyApiClient PartyApiClient
 @inject NearWalletService NearWallet
 @inject BalanceService BalanceService
-@inject AiProxy AiProxy
+@inject AudioPlayerService AudioPlayerService
 @inject ProtectedLocalStorage LocalStorage
 
 <PageTitle>Clubber AI</PageTitle>
-<ClubberAI.Web.Components.Layout.Radio />
 
 <div class="activeParty @(_activeParty != null ? "active" : "notactive")">
 	@if (_existingParticipant != null && _activeParty != null)
@@ -122,7 +118,8 @@
 					<span>@(_activeParty.ParticipantCount) Active Participants</span>
 				</p>
 				
-				<button @onclick="Join" class="btn btn-primary">Attend @_activeParty.PartyName</button>
+				<button @onclick="Join" class="btn btn-primary">Create avatar</button>
+				<button @onclick="Join" class="btn btn-secondary">Random avatar</button>
 			</div>
 		</div>
 	}
@@ -189,7 +186,7 @@
 
 	private int _tries;
 	private string? _error = null;
-	
+
 	private Modal modal;
 	private Modal splashPop;
 
@@ -230,7 +227,7 @@
 			var splashResult = await LocalStorage.GetAsync<string>("splash");
 			//if (!splashResult.Success || splashResult.Value != "false")
 			//{
-				await splashPop.Show();
+			await splashPop.Show();
 			//}
 
 			// Add this check to ensure we're running on the client side
@@ -324,6 +321,7 @@
 			return;
 		}
 		_activeParty = _parties[guid];
+		await AudioPlayerService.Play(_activeParty.MusicChannel);
 		StateHasChanged();
 	}
 
