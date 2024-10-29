@@ -41,8 +41,8 @@
 				<span><b>Hair style:</b>@_existingParticipant.HairStyle</span>
 				<span><b>Ethnicity:</b> @_existingParticipant.Ethnicity</span>
 				<span><b>Gender:</b> @_existingParticipant.Gender</span>
-				<button @onclick="RecreateAvatar" class="btn-secondary">New avatar</button>
-				<button @onclick="Chat">Start mingling</button>
+				<button @onclick="RecreateAvatar" class="btn btn-secondary">New avatar</button>
+				<button @onclick="Chat" class="btn btn-primary">Start mingling</button>
 			</div>
 		</div>
 	}
@@ -252,7 +252,7 @@
 					{
 						Position = new Position(point.Item2, point.Item1),
 						Draggable = false,
-						Color = "#fffec9",
+						Color = "#ee2100",
 						Popup = new HtmlMarkerPopup(new PopupOptions
 						{
 							Content = $@"
@@ -368,7 +368,7 @@
 				await JsRuntime.InvokeVoidAsync("alert", "Please fill all fields");
 				return;
 			}
-			await PartyService.GeneratePhotos(_newParticipant);
+			await PartyService.GeneratePhotos(_newParticipant, false);
 		}
 		finally
 		{
@@ -452,6 +452,7 @@
 		if (confirmed)
 		{
 			_existingParticipant = null;
+
 			await Join();
 		}
 	}

@@ -218,7 +218,7 @@ namespace ClubberAI.ServiceDefaults.Model
 		public string HistoryJson
 		{
 			get => JsonSerializer.Serialize(History);
-			set => History = JsonSerializer.Deserialize<List<ChatMessageData>>(value);
+			set => History = JsonSerializer.Deserialize<List<ChatMessageData>>(value, JsonOptions.DefaultOptions);
 		}
 
 		[BsonElement("participant1PhotoThumb")]

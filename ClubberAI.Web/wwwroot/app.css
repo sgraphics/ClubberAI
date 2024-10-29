@@ -338,3 +338,7 @@ h1 {
 .splashbody p {
     padding-top: min(40px, 4vw);
 }
+.form-control, .form-select
+{
+    width:auto;
+}

@@ -53,7 +53,7 @@ namespace ClubberAI.ServiceDefaults.Services
 					};
 
 			var result = await _aiProxy.Think(aiMessageRecords);
-			var participant = JsonSerializer.Deserialize<Participant>(result)!;
+			var participant = JsonSerializer.Deserialize<Participant>(result, JsonOptions.DefaultOptions)!;
 
 			participant.PartyId = party.Id;
 
@@ -102,6 +102,7 @@ namespace ClubberAI.ServiceDefaults.Services
 			var participants = new List<Participant>();
 
 			parties = await _partyCollection.FindSync<Party>(x => x.Date == date).ToListAsync();
+			var partiesToInsert = new List<Party>();
 			var channels = await _musicService.GetChannelsForAi();
 
             for (var i = 0; i < 1; i++)
@@ -133,7 +134,7 @@ The answer need to be in json array format (to support multiple parties) with th
 					aiMessageRecords.Add(new AiMessageRecord(AiMessageRole.User, "Create a party with 1 participant."));
 				}
 				var result = await _aiProxy.Think(aiMessageRecords);
-				var newParties = JsonSerializer.Deserialize<IList<Party>>(result);
+				var newParties = JsonSerializer.Deserialize<IList<Party>>(result, JsonOptions.DefaultOptions);
 				foreach (var newParty in newParties!)
 				{
 					foreach (var participant in newParty.Participants!)
@@ -144,11 +145,11 @@ The answer need to be in json array format (to support multiple parties) with th
 
 					newParty.Date = date;
 				}
+				partiesToInsert.AddRange(newParties);
 				parties.AddRange(newParties);
 			}
 
-
-			foreach (var party in parties)
+			foreach (var party in partiesToInsert)
 			{
 				await CreatePhotos(party);
 				await _partyCollection.InsertOneAsync(party);
@@ -191,7 +192,7 @@ The answer need to be in json array format (to support multiple parties) with th
 			participant.PhotoThumb = photo.ThumbUrl;
 			if (store)
 			{
-				await _participantCollection.InsertOneAsync(participant);
+				await _participantCollection.ReplaceOneAsync(x => x.Id == participant.Id, participant, new ReplaceOptions { IsUpsert = true });
 			}
 		}
 
