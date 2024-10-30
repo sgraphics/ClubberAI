@@ -46,7 +46,9 @@
 		function ScrollBottom() {
 
 			var objDiv = document.getElementById("chatcontainer");
-			objDiv.scrollTop = objDiv.scrollHeight;
+			if (objDiv) {
+				objDiv.scrollTop = objDiv.scrollHeight;
+			}
 		}
 
 	</script>

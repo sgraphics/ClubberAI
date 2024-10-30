@@ -1,0 +1,342 @@
+﻿@page "/chat"
+@implements IDisposable
+@rendermode InteractiveServer
+
+<PageTitle>Clubber AI Chat</PageTitle>
+@using System.Numerics
+@using BootstrapBlazor.Components
+@using System.Reactive.Linq
+@using System.Reactive.Disposables
+@using ClubberAI.ServiceDefaults
+@using ClubberAI.ServiceDefaults.Model
+@using ClubberAI.ServiceDefaults.Services
+@inject IJSRuntime JsRuntime
+@inject ChatService ChatService
+@inject NearWalletService NearWallet
+@inject BalanceService BalanceService
+@inject PartyApiClient PartyApiClient
+
+@if (_messages == null)
+{
+	<p><em>Loading...</em></p>
+}
+else
+{
+	<div class="chatcontainer" id="chatcontainer">
+
+		@if (sending)
+		{
+			<div class="row">
+				<div class="col col-md-auto translateBetterpod ischat">
+					<img src="img/say_aiv.webp" class="say_aiv" />
+					<div class="chatbubble">
+						<p class="typing">
+							<span></span>
+							<span></span>
+							<span></span>
+						</p>
+					</div>
+				</div>
+				<div class="col">&nbsp;</div>
+			</div>
+		}
+		@foreach (var request in _messages.Values.Reverse())
+		{
+			<div class="row">
+				@if (request.IsHuman)
+				{
+					<div class="col">&nbsp;</div>
+					<div class="col col-md-auto translateBetterpod person @(request.IsChat ? "ischat" : "notchat")">
+						<img src="img/say_person.webp" class="say_person" />
+						<div class="chatbubble">@((MarkupString)request.Text.Replace("\n", "<br/>"))</div>
+					</div>
+				}
+				else
+				{
+					<div class="col col-md-auto translateBetterpod @(request.IsChat ? "ischat" : "notchat")">
+						<img src="img/say_aiv.webp" class="say_aiv" />
+						<div class="chatbubble">
+							@((MarkupString)request.Text.Replace("\n", "<br/>"))
+							@if (!string.IsNullOrWhiteSpace(request.img))
+							{
+								<a href="@request.img" target="_blank">
+									<img src="@PartyApiClient.GetBaseUrl()/@request.img" alt="@request.Text" />
+								</a>
+							}
+						</div>
+					</div>
+					<div class="col">&nbsp;</div>
+				}
+			</div>
+		}
+	</div>
+	<div class="chatbox row">
+		<div class="col col-12">
+			<img src="img/send.webp" @onclick="SendMessage" class="sendimage @(sending ? "disabled" : String.Empty)" alt="send chat to AI" />
+			<div class="textcontainer">
+				<textarea placeholder="Chat with @(_chat?.OtherParticipant?.Name ?? "...")" rows="1" @bind="messageToSend"></textarea>
+			</div>
+		</div>
+	</div>
+	@if (_chat?.OtherParticipant != null)
+	{
+		<div class="hotornot">
+			<div class="row">
+				<div clas="col col-1">
+
+					<p class="participantwidget">
+						<a href="@_chat.OtherParticipant.Photo" target="_blank">
+							<img src="@PartyApiClient.GetBaseUrl()/@_chat.OtherParticipant.PhotoThumb" class="participantwidgetimage" />
+						</a>
+					</p>
+				</div>
+				<div clas="col col-5">Is @_chat.OtherParticipant.Name human?</div>
+				<div clas="col col-3"><button class="btn btn-primary" @onclick="() => EndChat(false)">human</button></div>
+				<div clas="col col-3"><button class="btn btn-primary" @onclick="() => EndChat(true)">AI</button></div>
+			</div>
+		</div>
+	}
+}
+
+<Modal @ref="modal">
+	<ModalDialog Title="Message" ShowCloseButton="false" ShowHeader="false">
+
+		<BodyTemplate>
+			<div class="row">
+				@if (_chat?.OtherParticipant != null)
+				{
+					<h4>@_chat.OtherParticipant.Name</h4>
+					<p>
+						<img src="@PartyApiClient.GetBaseUrl()/@_chat?.OtherParticipant.PhotoThumb" class="chatwith" />
+						You are chatting with @_chat.OtherParticipant.Name (@_chat.OtherParticipant.Age), the goal is to guess whether @_chat.GetOtherPronoun() is an AI or real human. If you guess correctly you get one point.
+						<br /><br />
+						But do it quickly, if @_chat.GetOtherPronoun() <i>is</i> a human and guesses correctly before you then @_chat.GetOtherPronoun() gets the point instead.
+					</p>
+				}
+				else
+				{
+					<h4>Chill</h4>
+					<p>
+						Seems everyone's busy and no-one to talk to. Sounds like it's time for a drink!
+					</p>
+				}
+			</div>
+		</BodyTemplate>
+		<FooterTemplate>
+			@if (_chat?.OtherParticipant != null)
+			{
+				<button class="btn btn-primary" value="Subscribe now" @onclick="() => modal.Close()">Chat</button>
+			}
+			else
+			{
+				<button disabled="disabled" class="btn btn-secondary">Please wait...</button>
+			}
+		</FooterTemplate>
+	</ModalDialog>
+</Modal>
+
+
+@code {
+	[Parameter]
+	[SupplyParameterFromQuery(Name = "party")]
+	public string? PartyId { get; set; }
+
+	private Modal modal;
+
+	public bool _scrollDone;
+	public string _error;
+
+	private string? messageToSend;
+	public string? WalletUser { get; set; }
+
+	private SerialDisposable _chatSubscription = new SerialDisposable();
+	private IDisposable? _timerSubscription;
+
+	private record Message(string Text, DateTimeOffset Timestamp, string Id, bool IsHuman, bool IsChat, bool IsError = false, string? img = null)
+	{
+	}
+
+	private SortedList<DateTimeOffset, Message> _messages;
+
+	private bool _init;
+	private bool _busy;
+
+
+	private async Task TryLogin()
+	{
+		if (!string.IsNullOrWhiteSpace(WalletUser))
+		{
+			return;
+		}
+
+		await NearWallet.InitNear();
+		bool isSignedIn = await NearWallet.IsSignedIn();
+		if (isSignedIn)
+		{
+			WalletUser = await NearWallet.GetAccountId();
+			try
+			{
+				var balance = await NearWallet.GetTokenBalance();
+				BalanceService.UpdateBalance(WalletUser, BigInteger.Parse(balance));
+			}
+			catch (Exception ex)
+			{
+				_error = "Error fetching token balance: " + ex.Message;
+			}
+			StateHasChanged();
+		}
+		else
+		{
+			_error = "Not signed in with NEAR wallet.";
+		}
+	}
+
+	
+
+	private async Task GetChat()
+	{
+		_chat = await ChatService.StartChat(PartyId!, WalletUser);
+		if (_chat is { OtherParticipant: not null })
+		{
+			_chatSubscription.Disposable = ChatService.ChatUpdates.Where(x => x.Item1 == _chat.Id).Subscribe(x =>
+			{
+				var (chatId, chatMessageData) = x;
+				if (chatMessageData.IsBot.HasValue)
+				{
+					if (chatMessageData.ParticipantId != _chat.Participant.Id)
+					{
+						//TODO: perform payment
+						if (chatMessageData.IsBot.Value)
+						{
+							JsRuntime.InvokeVoidAsync("alert", _chat.OtherParticipant.Name + " voted that you are a bot! No-one gets a point.");
+						}
+						else
+						{
+							JsRuntime.InvokeVoidAsync("alert", $"{_chat.OtherParticipant.Name} voted that you are human and {_chat.GetOtherPronoun()} gets a point!");
+						}
+					}
+					InvokeAsync(CycleChat);
+				}
+				else
+				{
+					var isHuman = chatMessageData.ParticipantId == _chat.Participant.Id;
+					_messages.Add(chatMessageData.Timestamp, new Message(chatMessageData.Message, chatMessageData.Timestamp, Guid.NewGuid().ToString(), isHuman, true));
+					sending = isHuman;
+					InvokeAsync(() => base.StateHasChanged());
+				}
+
+			});
+		}
+	}
+
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (firstRender)
+		{
+			if (_init)
+			{
+				return;
+			}
+			_init = true;
+
+			await TryLogin();
+			_timerSubscription = Observable.Timer(TimeSpan.Zero, TimeSpan.FromSeconds(3))
+				.Where(_ => _chat?.OtherParticipant == null)
+				.Subscribe(async _ =>
+				{
+					await GetChat();
+					await modal.Show();
+					_messages = new SortedList<DateTimeOffset, Message>();
+					foreach (var chatMessageData in _chat.History)
+					{
+						_messages.Add(chatMessageData.Timestamp, new Message(chatMessageData.Message, chatMessageData.Timestamp, Guid.NewGuid().ToString(), chatMessageData.ParticipantId == _chat.Participant.Id, true));
+					}
+					if (_chat?.OtherParticipant != null)
+					{
+						await InvokeAsync(async () =>
+						{
+							await JsRuntime.InvokeVoidAsync("ScrollBottom");
+							StateHasChanged();
+						});
+					}
+				});
+		}
+		await base.OnAfterRenderAsync(firstRender);
+	}
+
+	private bool sending;
+	private ChatData? _chat;
+
+	private async Task SendMessage()
+	{
+		if (sending)
+		{
+			return;
+		}
+		sending = true;
+		try
+		{
+			if (string.IsNullOrWhiteSpace(messageToSend))
+			{
+				return;
+			}
+
+			var newChat = messageToSend;
+
+			messageToSend = null;
+
+			StateHasChanged();
+
+			await JsRuntime.InvokeVoidAsync("ScrollBottom");
+
+			await ChatService.Say(newChat, _chat);
+
+			Task.Run(async () =>
+			{
+				await Task.Delay(200);
+				await JsRuntime.InvokeVoidAsync("ScrollBottom");
+			});
+		}
+		catch (Exception ex)
+		{
+			_messages.Add(DateTimeOffset.Now, new Message(ex.Message, DateTimeOffset.Now, Guid.NewGuid().ToString(), false, false, true));
+		}
+		finally
+		{
+			StateHasChanged();
+		}
+	}
+
+	private async Task EndChat(bool isBot)
+	{
+		var correct = await ChatService.EndChat(_chat, isBot, WalletUser);
+		if (correct)
+		{
+			await JsRuntime.InvokeVoidAsync("alert", "Correct! You get one point!");
+		}
+		else
+		{
+			await JsRuntime.InvokeVoidAsync("alert", "Wrong! No points for you");
+		}
+
+		await CycleChat();
+	}
+
+	private async Task CycleChat()
+	{
+		_chat = null;
+		_messages.Clear();
+		sending = false;
+	}
+
+	public void Dispose()
+	{
+		_timerSubscription?.Dispose();
+		_chatSubscription.Dispose();
+		if (modal is IDisposable modalDisposable)
+			modalDisposable.Dispose();
+		else
+			_ = modal.DisposeAsync().AsTask();
+	}
+
+}

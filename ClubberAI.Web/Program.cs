@@ -15,6 +15,7 @@ builder.Services.AddSingleton<BalanceService>();
 builder.Services.AddScoped<NearWalletService>();
 builder.Services.AddScoped<AudioPlayerService>();
 builder.Services.AddSingleton<MusicService>();
+builder.Services.AddSingleton<ChatService>();
 builder.AddRedisOutputCache("cache");
 builder.Services.AddServiceDiscovery();
 

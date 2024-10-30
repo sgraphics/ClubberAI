@@ -10,6 +10,11 @@ a, .btn-link {
     color: #006bb7;
 }
 
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Sora', sans-serif;
+    font-weight: 800; /* Extra Bold */
+}
+
 .btn-primary {
     color: #fff;
     background-color: #1b6ec2;
@@ -81,9 +86,13 @@ h1:focus {
 
 .popup-content-container{
 
-    border-radius:20px !important;
+    border-radius:15px !important;
     padding:15px;
     box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.1) !important;
+}
+.popup-close
+{
+    margin:5px;
 }
 .partypopup .col > * {
     display: block;
@@ -103,6 +112,13 @@ h1:focus {
     width: 120px;
     height: 180px;
     object-fit: cover;
+    border-radius: 10px;
+    box-shadow: 4px 4px 10px 0 rgba(0, 0, 0, 0.2);
+}
+
+.partypopup h2{
+    font-family: 'Sora', sans-serif;
+    font-weight: 800; /* Extra Bold */
 }
 
 .popup-content-container {

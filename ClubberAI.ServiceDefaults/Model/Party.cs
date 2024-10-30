@@ -109,10 +109,19 @@ namespace ClubberAI.ServiceDefaults.Model
 		[BsonElement("gender")]
 		[JsonPropertyName("gender")]
 		public string Gender { get; set; }
+
+		[BsonElement("score")]
+		[JsonPropertyName("score")]
+		public int Score { get; set; }
 	}
 
 	public class Participant : EntityBase
 	{
+		public Participant()
+		{
+			Timestamp = DateTimeOffset.UtcNow;
+		}
+
 		[BsonElement("partyId")]
 		[JsonPropertyName("partyId")]
 		public string? PartyId { get; set; }
@@ -164,6 +173,10 @@ namespace ClubberAI.ServiceDefaults.Model
 		[BsonElement("score")]
 		[JsonPropertyName("score")]
 		public int Score { get; set; }
+
+		[BsonElement("timestamp")]
+		[JsonPropertyName("timestamp")]
+		public DateTimeOffset Timestamp { get; set; }
 	}
 
 	public class ChatData : EntityBase
@@ -210,6 +223,11 @@ namespace ClubberAI.ServiceDefaults.Model
 				Photo = Participant1Id == Participant.Id ? Participant2Photo : Participant1Photo,
 			};
 
+		public string GetOtherPronoun()
+		{
+			return Participant?.Gender == "M" ? "she" : "he";
+		}
+
 		[BsonIgnore]
 		public List<ChatMessageData> History { get; set; } = new();
 
@@ -236,6 +254,10 @@ namespace ClubberAI.ServiceDefaults.Model
 		[BsonElement("participant2Photo")]
 		[JsonPropertyName("participant2Photo")]
 		public string? Participant2Photo { get; set; }
+
+		[BsonElement("partyId")]
+		[JsonPropertyName("partyId")]
+		public string? PartyId { get; set; }
 	}
 
 	public class ChatMessageData
