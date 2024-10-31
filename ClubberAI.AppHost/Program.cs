@@ -20,7 +20,7 @@ var apiService = builder
 var token = builder.AddNpmApp("token", "../ClubberAI.TokenService")
 	//.WithReference(apiService)
 	//.WaitFor(apiService)
-	.WithHttpEndpoint(env: "PORT")
+	.WithHttpEndpoint(env: "PORT").WithExternalHttpEndpoints()
 	.WithEnvironment("PrivateKey", privatekey)
 	.WithExternalHttpEndpoints()
 	.PublishAsDockerFile();
