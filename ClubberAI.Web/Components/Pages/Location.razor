@@ -30,12 +30,12 @@
 	@if (_existingParticipant != null && _activeParty != null)
 	{
 		<div class="partywall"></div>
-		<div class="partyback" style="background-image:url(@PartyApiClient.GetBaseUrl()/@_activeParty.Photo)"></div>
+		<div class="partyback" style="background-image:url(@PartyApiClient.GetTokenApiUrl()/@_activeParty.Photo)"></div>
 		<div class="partygradient" style="background: linear-gradient(0deg, @(_activeParty.PrimaryColor)77 0%,#ffffff77 50%,#ffffff77 100%)"></div>
 		<div class="row">
 			<div class="col col-12 partypage">
 				<a href="javascript:void(0)" class="closebtn" @onclick="() => _activeParty = null">&#10005;</a>
-				<img class="flyer" src="@PartyApiClient.GetBaseUrl()/@_existingParticipant.Photo" />
+				<img class="flyer" src="@PartyApiClient.GetTokenApiUrl()/@_existingParticipant.Photo" />
 				<h2>Avatar</h2>
 				<span><b>Name:</b> @_existingParticipant.Name</span>
 				<span><b>Hair style:</b>@_existingParticipant.HairStyle</span>
@@ -49,14 +49,14 @@
 	else if (_newParticipant != null && _activeParty != null)
 	{
 		<div class="partywall"></div>
-		<div class="partyback" style="background-image:url(@PartyApiClient.GetBaseUrl()/@_activeParty.Photo)"></div>
+		<div class="partyback" style="background-image:url(@PartyApiClient.GetTokenApiUrl()/@_activeParty.Photo)"></div>
 		<div class="partygradient" style="background: linear-gradient(0deg, @(_activeParty.PrimaryColor)77 0%,#ffffff77 50%,#ffffff77 100%)"></div>
 		<div class="row">
 			<div class="col col-12 partypage">
 				<a href="javascript:void(0)" class="closebtn" @onclick="() => _activeParty = null">&#10005;</a>
 				@if (!string.IsNullOrWhiteSpace(_newParticipant.Photo))
 				{
-					<img class="flyer" src="@PartyApiClient.GetBaseUrl()/@_newParticipant.Photo" />
+					<img class="flyer" src="@PartyApiClient.GetTokenApiUrl()/@_newParticipant.Photo" />
 				}
 				<h2>Create an avatar for the party</h2>
 				<span><b>Name:</b></span>
@@ -96,12 +96,12 @@
 	else if (_activeParty != null)
 	{
 		<div class="partywall"></div>
-		<div class="partyback" style="background-image:url(@PartyApiClient.GetBaseUrl()/@_activeParty.Photo)"></div>
+		<div class="partyback" style="background-image:url(@PartyApiClient.GetTokenApiUrl()/@_activeParty.Photo)"></div>
 		<div class="partygradient" style="background: linear-gradient(0deg, @(_activeParty.PrimaryColor)77 0%,#ffffff77 50%,#ffffff77 100%)"></div>
 		<div class="row">
 			<div class="col col-12 partypage">
 				<a href="javascript:void(0)" class="closebtn" @onclick="() => _activeParty = null">&#10005;</a>
-				<img class="flyer" src="@PartyApiClient.GetBaseUrl()/@_activeParty.Photo"/>
+				<img class="flyer" src="@PartyApiClient.GetTokenApiUrl()/@_activeParty.Photo"/>
 				<h2>@_activeParty.PartyName</h2>
 				<span><b>Access:</b> free</span>
 				<span><b>Time:</b> ongoing</span>
@@ -113,7 +113,7 @@
 				<p class="participantwidget">
 					@foreach (var somePhoto in _activeParty.SomePhotos)
 					{
-						<img src="@PartyApiClient.GetBaseUrl()/@somePhoto" class="participantwidgetimage" />
+						<img src="@PartyApiClient.GetTokenApiUrl()/@somePhoto" class="participantwidgetimage" />
 					}
 					<span>@(_activeParty.ParticipantCount) Active Participants</span>
 				</p>
@@ -246,7 +246,7 @@
 		{
 			var point = GeoUtils.GenerateRandomPoint(Coordinates.Item1, Coordinates.Item2, 500);
 
-			string baseUrl = PartyApiClient.GetBaseUrl();
+			string baseUrl = PartyApiClient.GetTokenApiUrl();
 			var htmlMarker = new HtmlMarker(
 				new HtmlMarkerOptions
 					{

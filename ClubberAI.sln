@@ -2,7 +2,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.11.35327.3
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClubberAI.AppHost", "ClubberAI.AppHost\ClubberAI.AppHost.csproj", "{C8EED6F1-50B3-4AB6-97DB-B34ACC783E42}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ClubberAI.AppHost", "ClubberAI.AppHost\ClubberAI.AppHost.csproj", "{C8EED6F1-50B3-4AB6-97DB-B34ACC783E42}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ClubberAI.ServiceDefaults", "ClubberAI.ServiceDefaults\ClubberAI.ServiceDefaults.csproj", "{6BD6EACE-5A56-47BD-950E-A3A7869068BA}"
 EndProject
@@ -11,6 +11,8 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ClubberAI.Web", "ClubberAI.Web\ClubberAI.Web.csproj", "{F05F0103-E5A7-4159-A4DD-83B6349229AF}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ClubberAI.Tests", "ClubberAI.Tests\ClubberAI.Tests.csproj", "{84697899-A74F-4641-8CF0-6221E66FA557}"
+EndProject
+Project("{9092AA53-FB77-4645-B42D-1CCCA6BD08BD}") = "ClubberAI.TokenService", "ClubberAI.TokenService\ClubberAI.TokenService.njsproj", "{A7A0F113-94B1-47E6-8D2F-B608EBDCFFCE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -38,6 +40,10 @@ Global
 		{84697899-A74F-4641-8CF0-6221E66FA557}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{84697899-A74F-4641-8CF0-6221E66FA557}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{84697899-A74F-4641-8CF0-6221E66FA557}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A7A0F113-94B1-47E6-8D2F-B608EBDCFFCE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A7A0F113-94B1-47E6-8D2F-B608EBDCFFCE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A7A0F113-94B1-47E6-8D2F-B608EBDCFFCE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A7A0F113-94B1-47E6-8D2F-B608EBDCFFCE}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

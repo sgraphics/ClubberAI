@@ -57,7 +57,7 @@
 							@if (!string.IsNullOrWhiteSpace(request.img))
 							{
 								<a href="@request.img" target="_blank">
-									<img src="@PartyApiClient.GetBaseUrl()/@request.img" alt="@request.Text" />
+									<img src="@PartyApiClient.GetTokenApiUrl()/@request.img" alt="@request.Text" />
 								</a>
 							}
 						</div>
@@ -83,7 +83,7 @@
 
 					<p class="participantwidget">
 						<a href="@_chat.OtherParticipant.Photo" target="_blank">
-							<img src="@PartyApiClient.GetBaseUrl()/@_chat.OtherParticipant.PhotoThumb" class="participantwidgetimage" />
+							<img src="@PartyApiClient.GetTokenApiUrl()/@_chat.OtherParticipant.PhotoThumb" class="participantwidgetimage" />
 						</a>
 					</p>
 				</div>
@@ -102,7 +102,7 @@
 			<div class="row align-items-center" style="cursor: pointer;" @onclick="() => SelectChat(chat.PartyId)">
 				<div class="col-auto">
 					<p class="participantwidget mb-0">
-						<img src="@PartyApiClient.GetBaseUrl()/@chat.OtherParticipant.PhotoThumb" class="participantwidgetimage" />
+						<img src="@PartyApiClient.GetTokenApiUrl()/@chat.OtherParticipant.PhotoThumb" class="participantwidgetimage" />
 					</p>
 				</div>
 				<div class="col">
@@ -130,7 +130,7 @@ else if (_messages == null)
 				{
 					<h4>@_chat.OtherParticipant.Name</h4>
 					<p>
-						<img src="@PartyApiClient.GetBaseUrl()/@_chat?.OtherParticipant.PhotoThumb" class="chatwith" />
+						<img src="@PartyApiClient.GetTokenApiUrl()/@_chat?.OtherParticipant.PhotoThumb" class="chatwith" />
 						You are chatting with @_chat.OtherParticipant.Name (@_chat.OtherParticipant.Age), the goal is to guess whether @_chat.GetOtherPronoun() is an AI or real human. If you guess correctly you get one point.
 						<br /><br />
 						But do it quickly, if @_chat.GetOtherPronoun() <i>is</i> a human and guesses correctly before you then @_chat.GetOtherPronoun() gets the point instead.
