@@ -15,7 +15,8 @@ var apiService = builder
 	.WithEnvironment("OpenAiUrl", openaiurl)
 	.WithEnvironment("OpenAiKey", openaikey)
 	.WithReference(mongo)
-	.WithReference(cache);
+	.WithReference(cache)
+	.WithEnvironment("Mubert", mubert);
 
 var token = builder.AddNpmApp("token", "../ClubberAI.TokenService")
 	//.WithReference(apiService)
