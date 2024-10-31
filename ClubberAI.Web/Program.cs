@@ -22,7 +22,6 @@ builder.AddRedisOutputCache("cache");
 
 builder.Services.AddServiceDiscovery();
 
-
 builder.Services.AddBootstrapBlazor();
 builder.AddBlazrRenderStateServerServices();
 builder.Services.AddAzureMapsControl(
