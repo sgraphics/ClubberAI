@@ -103,7 +103,7 @@ namespace ClubberAI.ServiceDefaults.Services
 				.FirstOrDefaultAsync();
 		}
 
-		public async Task<ActionResult> CreateParties()
+		public async Task<ActionResult> CreateParties(string? description = null)
 		{
 			var date = DateTimeOffset.Now
                 //.AddDays(1)
@@ -114,13 +114,13 @@ namespace ClubberAI.ServiceDefaults.Services
 			parties = await _partyCollection.FindSync<Party>(x => x.Date == date).ToListAsync();
 			var partiesToInsert = new List<Party>();
 			var channels = await _musicService.GetChannelsForAi();
-
+			var currentDescription = string.IsNullOrEmpty(description) ? "" : $"The generated description should be for a party with the following summary: {description}";
             for (var i = 0; i < 1; i++)
 			{
 				var aiMessageRecords = new List<AiMessageRecord>
 				{
 					new(AiMessageRole.System, @"GPT that generates party descriptions. these are parties happening all around the city in different places. All parties are 18+ and happen in the evening (end time based on party). Parties should be interesting, some over the top, sexy, promising good time and chance to meet someone special. They can range from glamorous and expensive to student parties in abandoned dormitories.
-
+" + currentDescription + @"
 The answer need to be in json array format (to support multiple parties) with these required properties:
 1) partyName
 2) musicStyle

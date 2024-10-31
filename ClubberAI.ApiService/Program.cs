@@ -68,12 +68,11 @@ app.MapGet("/api/photos/{id}", async (string id, PartyService partyService) =>
 
 	return Results.File(photoBlob.Data, photoBlob.ContentType);
 });
-
-app.MapGet("/generateParty", async (PartyService partyService) =>
+app.MapGet("/generateParty", async (PartyService partyService, [FromQuery] string? description = null) =>
 {
     try
     {
-        var createdParties = await partyService.CreateParties();
+        var createdParties = await partyService.CreateParties(description);
         return Results.Ok(createdParties);
     }
     catch (Exception ex)
