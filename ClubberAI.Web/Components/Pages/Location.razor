@@ -312,6 +312,8 @@
 	[JSInvokable(nameof(OpenParty))]
 	public async Task OpenParty(string guid)
 	{
+		_existingParticipant = null;
+		_newParticipant = null;
 		await _markers[guid].Options.Popup.CloseAsync();
 		await TryLogin();
 		if (string.IsNullOrWhiteSpace(WalletUser))
