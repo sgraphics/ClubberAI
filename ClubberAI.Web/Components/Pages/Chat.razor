@@ -15,12 +15,9 @@
 @inject NearWalletService NearWallet
 @inject BalanceService BalanceService
 @inject PartyApiClient PartyApiClient
+@inject NavigationManager NavigationManager
 
-@if (_messages == null)
-{
-	<p><em>Loading...</em></p>
-}
-else
+@if (_chat != null)
 {
 	<div class="chatcontainer" id="chatcontainer">
 
@@ -96,6 +93,32 @@ else
 			</div>
 		</div>
 	}
+} else if (_chatList != null)
+{
+	<h2>Active chats</h2>
+	<div class="chatlist">
+		@foreach (var chat in _chatList)
+		{
+			<div class="row align-items-center" style="cursor: pointer;" @onclick="() => SelectChat(chat.PartyId)">
+				<div class="col-auto">
+					<p class="participantwidget mb-0">
+						<img src="@PartyApiClient.GetBaseUrl()/@chat.OtherParticipant.PhotoThumb" class="participantwidgetimage" />
+					</p>
+				</div>
+				<div class="col">
+					<div class="h5 mb-1">@chat.OtherParticipant.Name</div>
+					<div class="text-muted">@_partyList.FirstOrDefault(x => x.Id == chat.PartyId)?.PartyName</div>
+				</div>
+				<div class="col-auto">
+					<i class="fas fa-chevron-right"></i>
+				</div>
+			</div>
+		}
+	</div>
+}
+else if (_messages == null)
+{
+	<p><em>Loading...</em></p>
 }
 
 <Modal @ref="modal">
@@ -151,16 +174,23 @@ else
 
 	private SerialDisposable _chatSubscription = new SerialDisposable();
 	private IDisposable? _timerSubscription;
-
+	private List<Party>? _partyList;
+	private List<ChatData>? _chatList;
 	private record Message(string Text, DateTimeOffset Timestamp, string Id, bool IsHuman, bool IsChat, bool IsError = false, string? img = null)
 	{
 	}
 
-	private SortedList<DateTimeOffset, Message> _messages;
+	private SortedList<DateTimeOffset, Message>? _messages;
 
 	private bool _init;
 	private bool _busy;
 
+	protected override async Task OnParametersSetAsync()
+	{
+		await base.OnParametersSetAsync();
+
+		await CycleChat();
+	}
 
 	private async Task TryLogin()
 	{
@@ -190,11 +220,14 @@ else
 			_error = "Not signed in with NEAR wallet.";
 		}
 	}
-
 	
 
 	private async Task GetChat()
 	{
+		if (string.IsNullOrWhiteSpace(PartyId))
+		{
+			return;
+		}
 		_chat = await ChatService.StartChat(PartyId!, WalletUser);
 		if (_chat is { OtherParticipant: not null })
 		{
@@ -245,19 +278,29 @@ else
 				.Subscribe(async _ =>
 				{
 					await GetChat();
-					await modal.Show();
-					_messages = new SortedList<DateTimeOffset, Message>();
-					foreach (var chatMessageData in _chat.History)
+
+					if (_chat != null)
 					{
-						_messages.Add(chatMessageData.Timestamp, new Message(chatMessageData.Message, chatMessageData.Timestamp, Guid.NewGuid().ToString(), chatMessageData.ParticipantId == _chat.Participant.Id, true));
-					}
-					if (_chat?.OtherParticipant != null)
-					{
-						await InvokeAsync(async () =>
+						await modal.Show();
+						_messages = new SortedList<DateTimeOffset, Message>();
+						
+						foreach (var chatMessageData in _chat.History)
 						{
-							await JsRuntime.InvokeVoidAsync("ScrollBottom");
-							StateHasChanged();
-						});
+							_messages.Add(chatMessageData.Timestamp, new Message(chatMessageData.Message, chatMessageData.Timestamp, Guid.NewGuid().ToString(), chatMessageData.ParticipantId == _chat.Participant.Id, true));
+						}
+						if (_chat?.OtherParticipant != null)
+						{
+							await InvokeAsync(async () =>
+							{
+								await JsRuntime.InvokeVoidAsync("ScrollBottom");
+								StateHasChanged();
+							});
+						}
+					}
+					else if (_chatList == null)
+					{
+						(_chatList, _partyList) = await ChatService.GetActiveChats(WalletUser);
+						await InvokeAsync(StateHasChanged);
 					}
 				});
 		}
@@ -325,8 +368,18 @@ else
 	private async Task CycleChat()
 	{
 		_chat = null;
-		_messages.Clear();
+		_messages = null;
 		sending = false;
+		_chatList = null;
+		_partyList = null;
+	}
+
+	private async Task SelectChat(string partyId)
+	{
+		_chatList = null;
+		_partyList = null;
+		//PartyId = partyId;
+		NavigationManager.NavigateTo($"chat?party={partyId}");
 	}
 
 	public void Dispose()

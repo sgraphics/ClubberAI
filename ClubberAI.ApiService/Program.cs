@@ -14,6 +14,7 @@ builder.Services.AddProblemDetails();
 builder.Services.AddSingleton<PartyService>();
 builder.Services.AddSingleton<MusicService>();
 builder.Services.AddSingleton<AiProxy>();
+builder.AddRedisClient(connectionName: "cache");
 
 var app = builder.Build();
 
@@ -81,17 +82,30 @@ app.MapGet("/generateParty", async (PartyService partyService) =>
     }
 });
 
-app.MapGet("/addParticipant", async (PartyService partyService, [FromQuery] string partyId) =>
+app.MapGet("/addParticipant", async (PartyService partyService, [FromQuery] string partyId, [FromQuery] int count = 1) =>
 {
 	try
 	{
-		var participant = await partyService.AddParticipant(partyId);
-		return Results.Ok(participant);
+		var participants = await partyService.AddParticipants(partyId, count);
+		return Results.Ok(participants);
 	}
 	catch (Exception ex)
 	{
 		return Results.BadRequest(new { message = ex.Message });
 	}
+});
+
+app.MapGet("/regeneratePhotos", async (PartyService partyService) =>
+{
+    try
+    {
+        await partyService.RegenerateAllPhotos();
+        return Results.Ok(new { message = "Photos regenerated successfully" });
+    }
+    catch (Exception ex)
+    {
+        return Results.BadRequest(new { message = ex.Message });
+    }
 });
 
 app.MapDefaultEndpoints();

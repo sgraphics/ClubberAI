@@ -1,30 +1,29 @@
-﻿using Amazon.Runtime.Internal;
-using ClubberAI.ServiceDefaults.Model;
+﻿using ClubberAI.ServiceDefaults.Model;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using MongoDB.Driver;
 using System.Text.Json;
-using Amazon.Runtime.Internal.Util;
 using Microsoft.Extensions.Logging;
-using static System.Net.Mime.MediaTypeNames;
 using SkiaSharp;
+using StackExchange.Redis;
 
 namespace ClubberAI.ServiceDefaults.Services
 {
-	public class PartyService
+    public class PartyService
 	{
 		private readonly ILogger<PartyService> _logger;
         private readonly MusicService _musicService;
         private readonly AiProxy _aiProxy;
 		private readonly IMongoCollection<Party> _partyCollection;
 		private readonly IMongoCollection<Participant> _participantCollection;
-		private readonly IMongoCollection<PhotoBlob> _photoCollection;
+		private readonly IConnectionMultiplexer _redis;
 
-		public PartyService(IConfiguration config, AiProxy aiProxy, ILogger<PartyService> logger, MusicService musicService)
+		public PartyService(IConfiguration config, IConnectionMultiplexer redis, AiProxy aiProxy, ILogger<PartyService> logger, MusicService musicService)
 		{
 			_logger = logger;
             _musicService = musicService;
             _aiProxy = aiProxy;
+			_redis = redis;
 			// Access the connection string from the ConnectionStrings section
 			var connectionString = config.GetConnectionString("mongodb");
 			var client = new MongoClient(connectionString);
@@ -34,7 +33,6 @@ namespace ClubberAI.ServiceDefaults.Services
 
 			_partyCollection = database.GetCollection<Party>("parties");
 			_participantCollection = database.GetCollection<Participant>("participants");
-			_photoCollection = database.GetCollection<PhotoBlob>("photos");
 		}
 
 		public Party GetFirst()
@@ -42,31 +40,43 @@ namespace ClubberAI.ServiceDefaults.Services
 			return _partyCollection.FindSync(Builders<Party>.Filter.Empty).FirstOrDefault();
 		}
 
-		public async Task<Participant> AddParticipant(string partyId)
+		public async Task<List<Participant>> AddParticipants(string partyId, int count = 1)
 		{
 			var party = await _partyCollection.FindSync<Party>(x => x.Id == partyId).FirstOrDefaultAsync();
+			var participants = new List<Participant>();
 
-			var aiMessageRecords = new List<AiMessageRecord>
-					{
-						new(AiMessageRole.System, @"GPT that generates a party participant based on given description of a party. The participant should be different than those already registered as participants in the party description. Ration of men and women should be balanced. The participant should be of legal age 19-27. The result should be in JSON format.  For example { ""name"" : ""Jill R"", ""gender"" : ""F"", ""age"":""25"", ""photoPrompt"" : ""<FULL PROMPT HERE>"", ""chattingStyle"" :""proper writing, well articulated""  }. ""chattingStyle"" should be a brief description of chatting style. For example ""no capital letters, lots of slang like 'how u doin'"" or ""mostly proper, but makes a few spelling mistakes 'Hi, how are you dnoing?'"". The ""photoPrompt"" is a description for DALL-E to create a photo of that specific participants at the specific party: the background, clothing, vibe etc should reflect the party atmosphere, there ofcourse should be other people, partygoers, in the background and the participant should be sexy, enticing, flirty, handsom/cute. The ""photoPrompt"" can optionally detail the participant doing something like holding drink, dancing, showing some had sign, etc."),
-						new(AiMessageRole.User, JsonSerializer.Serialize(party))
-					};
+			for (int i = 0; i < count; i++)
+			{
+				try{
+					var aiMessageRecords = new List<AiMessageRecord>
+						{
+							new(AiMessageRole.System, @"GPT that generates a party participant based on given description of a party. The participant should be different than those already registered as participants in the party description. Ration of men and women should be balanced. The participant should be of legal age 19-27. The result should be in JSON format.  For example { ""name"" : ""Jill R"", ""gender"" : ""F"", ""age"":""25"", ""photoPrompt"" : ""<FULL PROMPT HERE>"", ""chattingStyle"" :""proper writing, well articulated""  }. ""chattingStyle"" should be a brief description of chatting style. For example ""no capital letters, lots of slang like 'how u doin'"" or ""mostly proper, but makes a few spelling mistakes 'Hi, how are you dnoing?'"". The ""photoPrompt"" is a description for DALL-E to create a photo of that specific participants at the specific party: the background, clothing, vibe etc should reflect the party atmosphere, there ofcourse should be other people, partygoers, in the background and the participant should be sexy, enticing, flirty, handsom/cute. The ""photoPrompt"" can optionally detail the participant doing something like holding drink, dancing, showing some had sign, etc."),
+							new(AiMessageRole.User, JsonSerializer.Serialize(party))
+						};
 
-			var result = await _aiProxy.Think(aiMessageRecords);
-			var participant = JsonSerializer.Deserialize<Participant>(result, JsonOptions.DefaultOptions)!;
+					var result = await _aiProxy.Think(aiMessageRecords);
+					var participant = JsonSerializer.Deserialize<Participant>(result, JsonOptions.DefaultOptions)!;
 
-			participant.PartyId = party.Id;
+					participant.PartyId = party.Id;
 
-			party.Participants!.Add(participant);
+					party.Participants!.Add(participant);
+					participants.Add(participant);
 
-			await GeneratePhotos(participant);
+					await GeneratePhotos(participant);
 
-			var update = Builders<Party>.Update
-				.Set(p => p.Participants, party.Participants);
+					var update = Builders<Party>.Update
+						.Set(p => p.Participants, party.Participants);
 
-			await _partyCollection.UpdateOneAsync(x => x.Id == partyId, update);
+					await _partyCollection.UpdateOneAsync(x => x.Id == partyId, update);
+				}
+				catch (Exception ex)
+				{
+					_logger.LogError(ex, "Failed to generate participant photos, retrying...");
+					i--;
+				}
+			}
 
-			return participant;
+			return participants;
 		}
 
 		public async Task<IList<Party>> GetParties()
@@ -192,7 +202,14 @@ The answer need to be in json array format (to support multiple parties) with th
 			participant.PhotoThumb = photo.ThumbUrl;
 			if (store)
 			{
-				await _participantCollection.ReplaceOneAsync(x => x.Id == participant.Id, participant, new ReplaceOptions { IsUpsert = true });
+				if (string.IsNullOrEmpty(participant.Id))
+				{
+					await _participantCollection.InsertOneAsync(participant);
+				}
+				else
+				{
+					await _participantCollection.ReplaceOneAsync(x => x.Id == participant.Id, participant);
+				}
 			}
 		}
 
@@ -206,23 +223,50 @@ The answer need to be in json array format (to support multiple parties) with th
 
 		public async Task<PhotoBlob> GetPhoto(string id)
 		{
-			return await _photoCollection.FindSync(x => x.Id == id).FirstOrDefaultAsync();
+			if (_redis == null)
+			{
+				_logger.LogError("Redis connection is null");
+				throw new InvalidOperationException("Redis is not configured");
+			}
+
+			try 
+			{
+				var db = _redis.GetDatabase();
+				var key = $"photo:{id}";
+				var cachedData = await db.StringGetAsync(key);
+				
+				if (!cachedData.HasValue)
+				{
+					_logger.LogWarning("Photo not found in Redis with key: {Key}", key);
+					return null;
+				}
+
+				_logger.LogInformation("Successfully retrieved photo from Redis with key: {Key}", key);
+				return new PhotoBlob
+				{
+					Id = id,
+					Data = (byte[])cachedData,
+					ContentType = "image/png"
+				};
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error retrieving photo from Redis with ID: {Id}", id);
+				throw;
+			}
 		}
+
 		public async Task<Photo> UploadPhoto(string base64Image)
 		{
 			try
 			{
-				var data = Convert.FromBase64String(base64Image);
-
-				// Store original image
-				var originalImage = new PhotoBlob
+				if (_redis == null)
 				{
-					Data = data,
-					ContentType = "image/png",
-					CreatedAt = DateTime.UtcNow
-				};
+					throw new InvalidOperationException("Redis is not configured");
+				}
 
-				await _photoCollection.InsertOneAsync(originalImage);
+				var data = Convert.FromBase64String(base64Image);
+				var originalId = Guid.NewGuid().ToString();
 
 				// Generate thumbnail
 				using (var stream = new MemoryStream(data))
@@ -235,20 +279,17 @@ The answer need to be in json array format (to support multiple parties) with th
 						thumbnailData = ms.ToArray();
 					}
 
-					var thumbnailImage = new PhotoBlob
-					{
-						Data = thumbnailData,
-						ContentType = "image/png",
-						CreatedAt = DateTime.UtcNow,
-						OriginalImageId = originalImage.Id
-					};
+					var thumbnailId = Guid.NewGuid().ToString();
 
-					await _photoCollection.InsertOneAsync(thumbnailImage);
+					// Store both images directly in Redis
+					var db = _redis.GetDatabase();
+					await db.StringSetAsync($"photo:{originalId}", data, expiry: null);
+					await db.StringSetAsync($"photo:{thumbnailId}", thumbnailData, expiry: null);
 
 					return new Photo
 					{
-						Url = $"api/photos/{originalImage.Id}",
-						ThumbUrl = $"api/photos/{thumbnailImage.Id}"
+						Url = $"api/photos/{originalId}",
+						ThumbUrl = $"api/photos/{thumbnailId}"
 					};
 				}
 			}
@@ -284,6 +325,32 @@ The answer need to be in json array format (to support multiple parties) with th
 		public async Task Save(Participant newParticipant)
 		{
 			await _participantCollection.InsertOneAsync(newParticipant);
+		}
+
+		public async Task RegenerateAllPhotos()
+		{
+			var date = DateTimeOffset.UtcNow.ToString("yy-MM-dd");
+			var parties = await _partyCollection.FindSync(x => x.Date == date).ToListAsync();
+			
+			foreach (var party in parties)
+			{
+				_logger.LogInformation("Regenerating photos for party: {PartyName}", party.PartyName);
+				
+				// Regenerate party flyer
+				await CreatePhotos(party);
+				await _partyCollection.ReplaceOneAsync(x => x.Id == party.Id, party);
+
+				// Regenerate participant photos
+				var participants = await _participantCollection
+					.FindSync<Participant>(x => x.PartyId == party.Id)
+					.ToListAsync();
+
+				foreach (var participant in participants)
+				{
+					_logger.LogInformation("Regenerating photos for participant: {ParticipantName}", participant.Name);
+					await GeneratePhotos(participant);
+				}
+			}
 		}
 	}
 }

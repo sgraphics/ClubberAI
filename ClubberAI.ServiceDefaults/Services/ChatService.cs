@@ -1,7 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Reactive.Subjects;
 using ClubberAI.ServiceDefaults.Model;
-using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -103,7 +102,14 @@ namespace ClubberAI.ServiceDefaults.Services
 
 			var chatMessageData = new ChatMessageData { Message = newChat, Timestamp = DateTimeOffset.UtcNow, ParticipantId = participant.Id };
 			chat.History.Add(chatMessageData);
-			await _chatsCollection.ReplaceOneAsync(x => x.Id == chat.Id, chat, new ReplaceOptions { IsUpsert = true });
+			if (string.IsNullOrEmpty(chat.Id))
+			{
+				await _chatsCollection.InsertOneAsync(chat);
+			}
+			else 
+			{
+				await _chatsCollection.ReplaceOneAsync(x => x.Id == chat.Id, chat);
+			}
 
 			ChatUpdates.OnNext((chat.Id, chatMessageData));
 
@@ -117,7 +123,7 @@ namespace ClubberAI.ServiceDefaults.Services
 
 					var aiMessageRecords = new List<AiMessageRecord>
 					{
-						new(AiMessageRole.System, @$"Conversation is between the user ({participant.Name}, {participant.Gender}, {participant.Age}) and a person called {otherParticipant.Name}. {otherParticipant.Name} is a {otherParticipant.Age} year old {otherParticipant.Gender}, who looks like this: {otherParticipant.Description}. {otherParticipant.Name} chatting style is as follows: {otherParticipant.ChattingStyle}. All generated answers must follow this writing style, and overall feel like a real person is writing. IMPORTANT: {otherParticipant.Name} message should be VERY short, brief, MAXIMUM 2 sentences, but can be even shorter like only 3 words. {otherParticipant.Name} aim is to answer questions but also ask questions about the user to learn more and perhaps hook up. Conversation can be flirty. Conversation takes place at a party: {chat.Party}, dress code: {chat.Party.DressCode}, music style {chat.Party.MusicStyle}.")
+						new(AiMessageRole.System, @$"Conversation is between the user (name: {participant.Name}, {participant.Gender}, {participant.Age}) and a person called {otherParticipant.Name}. {otherParticipant.Name} is a {otherParticipant.Age} year old {otherParticipant.Gender}, who looks like this: {otherParticipant.Description}. {otherParticipant.Name} chatting style is as follows: {otherParticipant.ChattingStyle}. All generated answers must follow this writing style, and overall feel like a real person is writing. IMPORTANT: {otherParticipant.Name} message should be VERY short, brief, MAXIMUM 2 sentences, but can be even shorter like only 3 words. {otherParticipant.Name} aim is to answer questions but also ask questions about the user to learn more and perhaps hook up. Conversation can be flirty. Conversation takes place at a party: {chat.Party}, dress code: {chat.Party.DressCode}, music style {chat.Party.MusicStyle}.")
 					};
 
 					AddChatHistory(chat, aiMessageRecords);
@@ -130,7 +136,7 @@ namespace ClubberAI.ServiceDefaults.Services
 
 					chat.History.Add(aiChatMessage);
 
-					await _chatsCollection.ReplaceOneAsync(x => x.Id == chat.Id, chat, new ReplaceOptions { IsUpsert = true });
+					await _chatsCollection.ReplaceOneAsync(x => x.Id == chat.Id, chat);
 
 					stopper.Stop();
 
@@ -221,6 +227,23 @@ namespace ClubberAI.ServiceDefaults.Services
 				x => x.Id == otherParticipant.Id,
 				Builders<Participant>.Update.Set(x => x.ActiveChatId, "")
 			);
+		}
+
+		public async Task<(List<ChatData> chats, List<Party> parties)> GetActiveChats(string? walletUser)
+		{
+			var participants = await _participantsCollection.FindSync<Participant>(x => x.User == walletUser && x.ActiveChatId != null && x.ActiveChatId != "").ToListAsync();
+			var chatIds = participants.Select(x => x.ActiveChatId).ToList();
+			var chats = await _chatsCollection.FindSync<ChatData>(x => chatIds.Contains(x.Id)).ToListAsync();
+			
+			// Set chat.Participant to current user's participant
+			foreach (var chat in chats)
+			{
+				chat.Participant = participants.First(p => p.ActiveChatId == chat.Id);
+			}
+			
+			var partyIds = chats.Select(x => x.PartyId).Distinct().ToList();
+			var parties = await _partiesCollection.FindSync<Party>(x => partyIds.Contains(x.Id)).ToListAsync();
+			return (chats, parties);
 		}
 	}
 }

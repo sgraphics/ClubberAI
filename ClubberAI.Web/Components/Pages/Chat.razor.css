@@ -4,10 +4,10 @@
     position: absolute;
 }
 
-    .translateBetterpod img.say_aiv {
-        left: 8px;
-        margin-top: 12px;
-    }
+.translateBetterpod img.say_aiv {
+    left: 8px;
+    margin-top: 29px;
+}
 
     .translateBetterpod img.say_person {
         right: 27px;
@@ -20,7 +20,7 @@
 
 
     .translateBetterpod .chatbubble {
-        background-color: #262529;
+        background-color: #e9e9eb;
         border-radius: 25px;
     }
 
@@ -362,4 +362,19 @@ h2 sup
     object-fit: cover;
     border-radius: 50%;
     border: 2px solid white;
+}
+
+.chatlist .row:hover
+{
+    background-color: #f0f0f0;
+    cursor: pointer;
+}
+
+.chatlist .row
+{
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.chatlist{
+    margin-top: 30px;
 }

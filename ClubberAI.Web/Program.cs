@@ -4,6 +4,7 @@ using Blazr.RenderState.Server;
 using ClubberAI.Web.Components;
 using AzureMapsControl.Components;
 using ClubberAI.ServiceDefaults;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,6 +18,8 @@ builder.Services.AddScoped<AudioPlayerService>();
 builder.Services.AddSingleton<MusicService>();
 builder.Services.AddSingleton<ChatService>();
 builder.AddRedisOutputCache("cache");
+//builder.AddRedisClient(connectionName: "cache");
+
 builder.Services.AddServiceDiscovery();
 
 
