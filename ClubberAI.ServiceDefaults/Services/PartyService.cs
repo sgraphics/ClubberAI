@@ -83,7 +83,7 @@ namespace ClubberAI.ServiceDefaults.Services
 		{
 			var date = DateTimeOffset.UtcNow.ToString("yy-MM-dd"); // "24-10-23"
 
-			var parties = await _partyCollection.FindSync(x => x.Date == date).ToListAsync();
+			var parties = await _partyCollection.FindSync(x => true).ToListAsync();
 			foreach (var party in parties)
 			{
 				var participants = await _participantCollection.FindSync<Participant>(x => x.PartyId == party.Id).ToListAsync();
@@ -111,7 +111,7 @@ namespace ClubberAI.ServiceDefaults.Services
 			var parties = new List<Party>();
 			var participants = new List<Participant>();
 
-			parties = await _partyCollection.FindSync<Party>(x => x.Date == date).ToListAsync();
+			parties = await _partyCollection.Find(_ => true).ToListAsync();
 			var partiesToInsert = new List<Party>();
 			var channels = await _musicService.GetChannelsForAi();
 			var currentDescription = string.IsNullOrEmpty(description) ? "" : $"The generated description should be for a party with the following summary: {description}";
@@ -188,7 +188,7 @@ The answer need to be in json array format (to support multiple parties) with th
 			else
 			{
 				var partition = DateTimeOffset.UtcNow.ToString("yy-MM-dd");
-				var party = (await _partyCollection.FindSync<Party>(x => x.Date == partition && x.Id == participant.PartyId).FirstOrDefaultAsync());
+				var party = (await _partyCollection.FindSync<Party>(x => x.Id == participant.PartyId).FirstOrDefaultAsync());
 				var prompt = @$"The photo background, clothing, vibe etc should reflect the party atmosphere, there ofcourse should be other people, partygoers, in the background and the participant should be sexy, enticing, flirty, handsom/cute. The participant should be of age {participant.Age}. The prompt can optionally detail the participant doing something like holding drink, dancing, showing some had sign, etc. The participant characteristics: hairstyle: {participant.HairStyle}, gender: {participant.Gender}, ethnicity: {participant.Ethnicity}. This is the party description: " + party.Description + ". Music style: " + party.MusicStyle + ". Dresscode: " + party.DressCode;
 				participantDescription = await _aiProxy.Think(new List<AiMessageRecord>
 				{
@@ -330,7 +330,7 @@ The answer need to be in json array format (to support multiple parties) with th
 		public async Task RegenerateAllPhotos()
 		{
 			var date = DateTimeOffset.UtcNow.ToString("yy-MM-dd");
-			var parties = await _partyCollection.FindSync(x => x.Date == date).ToListAsync();
+			var parties = await _partyCollection.FindSync(x => true).ToListAsync();
 			
 			foreach (var party in parties)
 			{
