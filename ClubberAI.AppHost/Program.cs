@@ -3,6 +3,7 @@ var builder = DistributedApplication.CreateBuilder(args);
 var openaikey = builder.AddParameter("openaikey", secret: true);
 var openaiurl = builder.AddParameter("openaiurl", secret: true);
 var mubert = builder.AddParameter("mubert", secret: true);
+var mongo = builder.AddConnectionString("mongodb");
 
 var cache = builder.AddRedis("cache")
 	.WithDataVolume()
@@ -12,9 +13,9 @@ var apiService = builder
 	.AddProject<Projects.ClubberAI_ApiService>("apiservice")
 	.WithEnvironment("OpenAiUrl", openaiurl)
 	.WithEnvironment("OpenAiKey", openaikey)
+	.WithReference(mongo)
 	.WithReference(cache);
 
-var apiurl = builder.AddParameter("apiurl", secret: true);
 
 builder.AddProject<Projects.ClubberAI_Web>("webfrontend")
 	.WithExternalHttpEndpoints()
@@ -22,7 +23,7 @@ builder.AddProject<Projects.ClubberAI_Web>("webfrontend")
 	.WithReference(apiService)
 	.WithEnvironment("OpenAiUrl", openaiurl)
 	.WithEnvironment("OpenAiKey", openaikey)
-	.WithEnvironment("ApiUrl", apiurl)
+	.WithReference(mongo)
 	.WithEnvironment("Mubert", mubert);
 
 builder.Build().Run();
