@@ -1,9 +1,15 @@
 html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    height: -webkit-fill-available;
 }
 
 body {
     overflow: hidden;
+    /* Add these properties */
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    position: fixed;
+    width: 100%;
 }
 
 a, .btn-link {

@@ -57,7 +57,7 @@
 							@if (!string.IsNullOrWhiteSpace(request.img))
 							{
 								<a href="@request.img" target="_blank">
-									<img src="@PartyApiClient.GetTokenApiUrl()/@request.img" alt="@request.Text" />
+									<img src="@PartyApiClient.GetApiUrl()/@request.img" alt="@request.Text" />
 								</a>
 							}
 						</div>
@@ -79,17 +79,17 @@
 	{
 		<div class="hotornot">
 			<div class="row">
-				<div clas="col col-1">
+				<div class="col col-1">
 
 					<p class="participantwidget">
 						<a href="@_chat.OtherParticipant.Photo" target="_blank">
-							<img src="@PartyApiClient.GetTokenApiUrl()/@_chat.OtherParticipant.PhotoThumb" class="participantwidgetimage" />
+							<img src="@PartyApiClient.GetApiUrl()/@_chat.OtherParticipant.PhotoThumb" class="participantwidgetimage" />
 						</a>
 					</p>
 				</div>
-				<div clas="col col-5">Is @_chat.OtherParticipant.Name human?</div>
-				<div clas="col col-3"><button class="btn btn-primary" @onclick="() => EndChat(false)">human</button></div>
-				<div clas="col col-3"><button class="btn btn-primary" @onclick="() => EndChat(true)">AI</button></div>
+				<div class="col col-7">Is @_chat.OtherParticipant.Name human?</div>
+				<div class="col col-1"><button class="btn btn-primary" @onclick="() => EndChat(false)">Yes</button></div>
+				<div class="col col-1"><button class="btn btn-primary" @onclick="() => EndChat(true)">No</button></div>
 			</div>
 		</div>
 	}
@@ -102,7 +102,7 @@
 			<div class="row align-items-center" style="cursor: pointer;" @onclick="() => SelectChat(chat.PartyId)">
 				<div class="col-auto">
 					<p class="participantwidget mb-0">
-						<img src="@PartyApiClient.GetTokenApiUrl()/@chat.OtherParticipant.PhotoThumb" class="participantwidgetimage" />
+						<img src="@PartyApiClient.GetApiUrl()/@chat.OtherParticipant.PhotoThumb" class="participantwidgetimage" />
 					</p>
 				</div>
 				<div class="col">
@@ -114,6 +114,34 @@
 				</div>
 			</div>
 		}
+	</div>
+	<h2>Past chats</h2>
+	<div class="chatlist">
+	@foreach (var chat in _pastChats)
+	{
+		<div class="row align-items-center">
+			<div class="col-auto">
+				<p class="participantwidget mb-0">
+					<img src="@PartyApiClient.GetApiUrl()/@chat.OtherParticipant.PhotoThumb" class="participantwidgetimage" />
+				</p>
+			</div>
+			<div class="col">
+				<div class="h5 mb-1">@chat.OtherParticipant.Name</div>
+				<div class="text-muted">@_partyList.FirstOrDefault(x => x.Id == chat.PartyId)?.PartyName</div>
+			</div>
+			<div class="col-auto">
+				@{
+					var participant = _participants?.FirstOrDefault(p => p.Id == chat.OtherParticipant.Id);
+				}
+				@if (participant != null)
+				{
+					<a href="https://test.near.social/#/eugenethedream/widget/ProfileLine?accountId=@participant.User" target="_blank">
+						Near.social<br />profile
+					</a>
+				}
+			</div>
+		</div>
+	}
 	</div>
 }
 else if (_messages == null)
@@ -130,7 +158,7 @@ else if (_messages == null)
 				{
 					<h4>@_chat.OtherParticipant.Name</h4>
 					<p>
-						<img src="@PartyApiClient.GetTokenApiUrl()/@_chat?.OtherParticipant.PhotoThumb" class="chatwith" />
+						<img src="@PartyApiClient.GetApiUrl()/@_chat?.OtherParticipant.PhotoThumb" class="chatwith" />
 						You are chatting with @_chat.OtherParticipant.Name (@_chat.OtherParticipant.Age), the goal is to guess whether @_chat.GetOtherPronoun() is an AI or real human. If you guess correctly you get one point.
 						<br /><br />
 						But do it quickly, if @_chat.GetOtherPronoun() <i>is</i> a human and guesses correctly before you then @_chat.GetOtherPronoun() gets the point instead.
@@ -152,12 +180,36 @@ else if (_messages == null)
 			}
 			else
 			{
-				<button disabled="disabled" class="btn btn-secondary">Please wait...</button>
+				<button class="btn btn-secondary" @onclick="@(() => NavigationManager.NavigateTo("/"))">Back to parties</button>
+				<button disabled="disabled" class="btn btn-secondary"><i class="fas fa-sync fa-spin"></i> Please wait...</button>
 			}
 		</FooterTemplate>
 	</ModalDialog>
 </Modal>
 
+<Modal @ref="stakeModal">
+	<ModalDialog Title="Stake Required" ShowCloseButton="false" ShowHeaderCloseButton="false">
+		<BodyTemplate>
+			<div class="row">
+				<div class="col">
+					<h4>Stake CLUB Tokens to Play</h4>
+					<p>
+						To participate in the guessing game, you need to stake 10 CLUB tokens. Here's how it works:
+					</p>
+					<ul>
+						<li>Stake 10 CLUB tokens to join the game</li>
+						<li>Earn 1 token for correct guesses</li>
+						<li>Lose 1 token for wrong guesses</li>
+						<li>If you run out of staked tokens, you'll need to stake more</li>
+					</ul>
+				</div>
+			</div>
+		</BodyTemplate>
+		<FooterTemplate>
+			<button class="btn btn-primary" @onclick="StakeTokens">Stake 10 CLUB</button>
+		</FooterTemplate>
+	</ModalDialog>
+</Modal>
 
 @code {
 	[Parameter]
@@ -165,6 +217,7 @@ else if (_messages == null)
 	public string? PartyId { get; set; }
 
 	private Modal modal;
+	private Modal stakeModal;
 
 	public bool _scrollDone;
 	public string _error;
@@ -176,6 +229,8 @@ else if (_messages == null)
 	private IDisposable? _timerSubscription;
 	private List<Party>? _partyList;
 	private List<ChatData>? _chatList;
+	private List<ChatData>? _pastChats;
+	private List<Participant>? _participants;
 	private record Message(string Text, DateTimeOffset Timestamp, string Id, bool IsHuman, bool IsChat, bool IsError = false, string? img = null)
 	{
 	}
@@ -228,6 +283,12 @@ else if (_messages == null)
 		{
 			return;
 		}
+		
+		if (!await CheckStake())
+		{
+			return;
+		}
+
 		_chat = await ChatService.StartChat(PartyId!, WalletUser);
 		if (_chat is { OtherParticipant: not null })
 		{
@@ -238,14 +299,13 @@ else if (_messages == null)
 				{
 					if (chatMessageData.ParticipantId != _chat.Participant.Id)
 					{
-						//TODO: perform payment
 						if (chatMessageData.IsBot.Value)
 						{
-							JsRuntime.InvokeVoidAsync("alert", _chat.OtherParticipant.Name + " voted that you are a bot! No-one gets a point.");
+							JsRuntime.InvokeVoidAsync("alert", _chat.OtherParticipant.Name + " voted that you are a AI! You get 1 staked CLUB.");
 						}
 						else
 						{
-							JsRuntime.InvokeVoidAsync("alert", $"{_chat.OtherParticipant.Name} voted that you are human and {_chat.GetOtherPronoun()} gets a point!");
+							JsRuntime.InvokeVoidAsync("alert", $"{_chat.OtherParticipant.Name} voted that you are human {_chat.GetOtherPronoun()} and gets 1 CLUB!");
 						}
 					}
 					InvokeAsync(CycleChat);
@@ -278,28 +338,31 @@ else if (_messages == null)
 				.Subscribe(async _ =>
 				{
 					await GetChat();
-
+					
 					if (_chat != null)
 					{
 						await modal.Show();
 						_messages = new SortedList<DateTimeOffset, Message>();
-						
-						foreach (var chatMessageData in _chat.History)
+
+						if (_chat != null)
 						{
-							_messages.Add(chatMessageData.Timestamp, new Message(chatMessageData.Message, chatMessageData.Timestamp, Guid.NewGuid().ToString(), chatMessageData.ParticipantId == _chat.Participant.Id, true));
-						}
-						if (_chat?.OtherParticipant != null)
-						{
-							await InvokeAsync(async () =>
+							foreach (var chatMessageData in _chat.History)
 							{
-								await JsRuntime.InvokeVoidAsync("ScrollBottom");
-								StateHasChanged();
-							});
+								_messages.Add(chatMessageData.Timestamp, new Message(chatMessageData.Message, chatMessageData.Timestamp, Guid.NewGuid().ToString(), chatMessageData.ParticipantId == _chat.Participant.Id, true));
+							}
+							if (_chat?.OtherParticipant != null)
+							{
+								await InvokeAsync(async () =>
+								{
+									await JsRuntime.InvokeVoidAsync("ScrollBottom");
+									StateHasChanged();
+								});
+							}
 						}
 					}
 					else if (_chatList == null)
 					{
-						(_chatList, _partyList) = await ChatService.GetActiveChats(WalletUser);
+						(_chatList, _partyList, _pastChats, _participants) = await ChatService.GetActiveChats(WalletUser);
 						await InvokeAsync(StateHasChanged);
 					}
 				});
@@ -355,11 +418,11 @@ else if (_messages == null)
 		var correct = await ChatService.EndChat(_chat, isBot, WalletUser);
 		if (correct)
 		{
-			await JsRuntime.InvokeVoidAsync("alert", "Correct! You get one point!");
+			await JsRuntime.InvokeVoidAsync("alert", "Correct! You get 1 staked CLUB!");
 		}
 		else
 		{
-			await JsRuntime.InvokeVoidAsync("alert", "Wrong! No points for you");
+			await JsRuntime.InvokeVoidAsync("alert", "Wrong! You lose 1 staked CLUB");
 		}
 
 		await CycleChat();
@@ -372,6 +435,8 @@ else if (_messages == null)
 		sending = false;
 		_chatList = null;
 		_partyList = null;
+		_pastChats = null;
+		_participants = null;
 	}
 
 	private async Task SelectChat(string partyId)
@@ -380,6 +445,32 @@ else if (_messages == null)
 		_partyList = null;
 		//PartyId = partyId;
 		NavigationManager.NavigateTo($"chat?party={partyId}");
+	}
+
+	private async Task<bool> CheckStake()
+	{
+		var user = await ChatService.GetUser(WalletUser);
+		if (user is not { Staked: > 0 }) // 0 CLUB tokens staked
+		{
+			await stakeModal.Show();
+			return false;
+		}
+		return true;
+	}
+
+	private async Task StakeTokens()
+	{
+		try
+		{
+			await ChatService.UpdateStake(WalletUser, 10);
+			await NearWallet.StakeClub();
+		}
+		catch (Exception ex)
+		{
+			System.Console.WriteLine("Error staking tokens: " + ex.Message);
+			await ChatService.UpdateStake(WalletUser, -10);
+			StateHasChanged();
+		}
 	}
 
 	public void Dispose()

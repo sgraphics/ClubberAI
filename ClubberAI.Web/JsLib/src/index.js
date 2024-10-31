@@ -38,10 +38,20 @@ export function signIn() {
 }
 
 export async function signOut() {
-  const { selectedWalletId } = selector.store.getState();
-  const walletModule = await selector.wallet(selectedWalletId);
-  if (walletModule) {
-    await walletModule.signOut();
+  try {
+    const { selectedWalletId } = selector.store.getState();
+    if (selectedWalletId) {
+      const walletModule = await selector.wallet(selectedWalletId);
+      if (walletModule) {
+        await walletModule.signOut();
+      }
+    }
+    // Clear any local state
+    localStorage.removeItem('near-wallet-selector:selectedWalletId');
+    localStorage.removeItem('near-wallet-selector:accounts');
+  } catch (error) {
+    console.error('Error during sign out:', error);
+    throw error;
   }
 }
 
@@ -72,6 +82,7 @@ export async function getTokenBalance() {
 
   return await contract.ft_balance_of({ account_id: accountId });
 }
+
 export function cleanupAudioEvents() {
   const audio = document.getElementById('radioPlayer');
   if (!audio) return;
@@ -81,6 +92,7 @@ export function cleanupAudioEvents() {
   audio.removeEventListener('pause', () => {});
   audio.removeEventListener('error', () => {});
 }
+
 export function setupAudioEvents(dotnetHelper) {
   const audio = document.getElementById('radioPlayer');
   if (!audio) return;
@@ -120,3 +132,60 @@ window.resumeAudio = () => {
   
   audio.play();
 };
+
+export async function stakeClub() {
+  if (!isSignedIn()) {
+    throw new Error('User is not signed in');
+  }
+
+  const STAKE_AMOUNT = '10000000000000000000'; // 10 CLUB tokens (18 decimals)
+
+  try {
+    const { selectedWalletId } = selector.store.getState();
+    const wallet = await selector.wallet(selectedWalletId);
+    
+    return await wallet.signAndSendTransactions({
+      transactions: [
+        {
+          // First transaction: storage deposit
+          receiverId: 'club.tkn.primitives.testnet',
+          actions: [
+            {
+              type: "FunctionCall",
+              params: {
+                methodName: "storage_deposit",
+                args: {
+                  account_id: 'clubberai.testnet',
+                  registration_only: true
+                },
+                gas: "30000000000000",
+                deposit: "1250000000000000000000"
+              }
+            }
+          ]
+        },
+        {
+          // Second transaction: token transfer
+          receiverId: 'club.tkn.primitives.testnet',
+          actions: [
+            {
+              type: "FunctionCall",
+              params: {
+                methodName: "ft_transfer",
+                args: {
+                  receiver_id: 'clubberai.testnet',
+                  amount: STAKE_AMOUNT,
+                },
+                gas: "50000000000000",
+                deposit: "1"
+              }
+            }
+          ]
+        }
+      ]
+    });
+  } catch (error) {
+    console.error('Staking error:', error);
+    throw error;
+  }
+}

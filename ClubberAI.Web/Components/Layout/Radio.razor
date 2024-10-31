@@ -137,12 +137,18 @@
         await AudioPlayerService.Play(playlist);
         await InvokeAsync(StateHasChanged);
     }
-
     public void Dispose()
     {
         _subscription?.Dispose();
         objRef?.Dispose();
-        JS.InvokeVoidAsync("nearWallet.cleanupAudioEvents");
+        try
+        {
+            JS.InvokeVoidAsync("nearWallet.cleanupAudioEvents");
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error cleaning up audio events: {ex.Message}");
+        }
     }
 
     [JSInvokable]
@@ -154,17 +160,38 @@
 
     private async Task StopAudio()
     {
-        await JS.InvokeVoidAsync("stopAudio");
+        try
+        {
+            await JS.InvokeVoidAsync("stopAudio");
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error stopping audio: {ex.Message}");
+        }
     }
 
     private async Task ToggleMute()
     {
-        _isMuted = await JS.InvokeAsync<bool>("toggleMute");
-        await InvokeAsync(StateHasChanged);
+        try
+        {
+            _isMuted = await JS.InvokeAsync<bool>("toggleMute");
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error toggling mute: {ex.Message}");
+        }
     }
 
     private async Task ResumeAudio()
     {
-        await JS.InvokeVoidAsync("resumeAudio");
+        try
+        {
+            await JS.InvokeVoidAsync("resumeAudio");
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error resuming audio: {ex.Message}");
+        }
     }
 }

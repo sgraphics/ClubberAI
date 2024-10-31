@@ -1,0 +1,81 @@
+@page "/faq"
+@rendermode InteractiveServer
+@inject IJSRuntime JS
+@inject NearWalletService NearWalletService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Clubber AI FAQ</PageTitle>
+
+<div class="container mt-5">
+    <h1>Frequently Asked Questions</h1>
+
+    <section class="mb-5">
+        <h2>How does ClubberAI work?</h2>
+        <ol>
+            <li>Join virtual parties happening around your location</li>
+            <li>Chat with other partygoers - some are real people, some are AI</li>
+            <li>Guess correctly if they're human or AI to earn CLUB tokens!</li>
+        </ol>
+    </section>
+
+    <section class="mb-5">
+        <h2>What makes ClubberAI unique?</h2>
+        <p>ClubberAI combines cutting-edge AI technology with blockchain rewards to create an engaging social experience:</p>
+        
+        <h3>Microsoft Aspire .NET</h3>
+        <p>Built on Microsoft's latest cloud-native application stack, ensuring high performance, scalability, and modern development practices. The platform leverages microservices architecture for robust and maintainable code.</p>
+
+        <h3>Near Protocol</h3>
+        <p>A fast, scalable blockchain platform that powers our CLUB token economy. Near makes it possible to instantly reward players for correct guesses and enables secure wallet integration. As a chain abstraction stack, it allows our application to scale to billions of users across multiple blockchains.</p>
+
+        <h3>Mubert AI</h3>
+        <p>An innovative AI-powered music generation platform that creates unique soundtracks for each virtual party. Every party has its own music channel with AI-generated music matching the party's style and vibe, ensuring a perfect soundtrack every time through the collaboration of human artists and AI algorithms.</p>
+
+        <h3>OpenAI Technologies</h3>
+        <ul>
+            <li><strong>DALL-E 3</strong> - Creates unique, photorealistic avatars for players and AI participants, as well as party flyers that capture each event's atmosphere.</li>
+            <li><strong>GPT-4</strong> - Powers our AI participants' conversations, making them engaging and context-aware. Each AI has its own personality, chatting style, and knowledge of the party they're attending.</li>
+        </ul>
+    </section>
+
+    <section class="mb-5">
+        <h2>About CLUB Tokens</h2>
+        <p>CLUB is the native token of the ClubberAI platform, powered by Near Protocol's blockchain technology:</p>
+        <ul>
+            <li>New users receive 100 CLUB tokens when joining their first party</li>
+            <li>Earn tokens by correctly identifying whether chat partners are human or AI</li>
+            <li>If you're human and another player incorrectly guesses you're AI, you earn their tokens!</li>
+            <li>Tokens are instantly transferred using Near Protocol's fast blockchain</li>
+            <li>Part of a new & more open digital economy, enabling unique ways to earn and transact</li>
+        </ul>
+    </section>
+
+    <section class="mb-5">
+        <h2>Tips for Playing</h2>
+        <ul>
+            <li>Pay attention to conversation patterns - AI participants may be too perfect in their responses</li>
+            <li>Ask creative questions that require real-world experience or emotional understanding</li>
+            <li>Don't make your guess too quickly - take time to have a real conversation</li>
+            <li>If you're human, try to be natural and avoid overly formal language</li>
+        </ul>
+    </section>
+
+    <section class="mb-5">
+        <h2>Learn More</h2>
+        <p>Explore our technology partners:</p>
+        <ul>
+            <li><a href="https://near.org/" target="_blank">Near Protocol</a></li>
+            <li><a href="https://mubert.com/" target="_blank">Mubert AI</a></li>
+            <li><a href="https://openai.com/" target="_blank">OpenAI</a></li>
+            <li><a href="#" @onclick="HandleLogout">Logout</a></li>
+        </ul>
+    </section>
+</div>
+
+@code {
+    private async Task HandleLogout()
+    {
+        await NearWalletService.SignOut();
+        NavigationManager.NavigateTo("/");
+    }
+}

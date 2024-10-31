@@ -43,11 +43,17 @@ builder.Services.AddHttpClient<WeatherApiClient>(client =>
         client.BaseAddress = new("https+http://apiservice");
     });
 builder.Services.AddHttpClient<PartyApiClient>(client =>
-    {
-        // This URL uses "https+http://" to indicate HTTPS is preferred over HTTP.
-        // Learn more about service discovery scheme resolution at https://aka.ms/dotnet/sdschemes.
-        client.BaseAddress = new("https+http://apiservice");
-    });
+{
+	// This URL uses "https+http://" to indicate HTTPS is preferred over HTTP.
+	// Learn more about service discovery scheme resolution at https://aka.ms/dotnet/sdschemes.
+	client.BaseAddress = new("https+http://apiservice");
+});
+builder.Services.AddHttpClient<TokenApiClient>(client =>
+{
+	// This URL uses "https+http://" to indicate HTTPS is preferred over HTTP.
+	// Learn more about service discovery scheme resolution at https://aka.ms/dotnet/sdschemes.
+	client.BaseAddress = new("https+http://token");
+});
 
 var app = builder.Build();
 
@@ -58,7 +64,7 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 
 app.UseStaticFiles();
 app.UseAntiforgery();

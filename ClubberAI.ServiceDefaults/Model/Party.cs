@@ -110,9 +110,13 @@ namespace ClubberAI.ServiceDefaults.Model
 		[JsonPropertyName("gender")]
 		public string Gender { get; set; }
 
-		[BsonElement("score")]
-		[JsonPropertyName("score")]
-		public int Score { get; set; }
+		[BsonElement("staked")]
+		[JsonPropertyName("staked")]
+		public int Staked { get; set; }
+
+		[BsonElement("wallet")]
+		[JsonPropertyName("wallet")]
+		public string Wallet { get; set; }
 	}
 
 	public class Participant : EntityBase

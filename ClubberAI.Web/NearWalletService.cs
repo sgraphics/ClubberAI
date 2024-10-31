@@ -27,8 +27,16 @@ public class NearWalletService
 
     public async Task SignOut()
     {
-        await _jsRuntime.InvokeVoidAsync("nearWallet.signOut");
-        await _sessionStorage.DeleteAsync(WALLET_KEY);
+        try 
+        {
+            await _jsRuntime.InvokeVoidAsync("nearWallet.signOut");
+            await _sessionStorage.DeleteAsync(WALLET_KEY);
+        }
+        catch (Exception ex)
+        {
+            // Consider logging the error
+            Console.WriteLine($"Error during sign out: {ex.Message}");
+        }
     }
 
     public async Task<bool> IsSignedIn()
@@ -81,4 +89,9 @@ public class NearWalletService
     {
         return await _jsRuntime.InvokeAsync<string>("nearWallet.getTokenBalance");
     }
+
+    public async Task StakeClub()
+	{
+		await _jsRuntime.InvokeVoidAsync("nearWallet.stakeClub");
+	}
 }

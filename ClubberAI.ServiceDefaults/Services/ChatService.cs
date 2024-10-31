@@ -168,41 +168,83 @@ namespace ClubberAI.ServiceDefaults.Services
 			}
 		}
 
+		public async Task<User?> GetUser(string userId)
+		{
+			return await _userCollection.FindSync<User>(x => x.Wallet == userId).FirstOrDefaultAsync();
+		}
+
+		public async Task UpdateStake(string userId, int amount)
+		{
+			await _userCollection.UpdateOneAsync(
+				x => x.Wallet == userId,
+				Builders<User>.Update.Inc(x => x.Staked, amount),
+				new UpdateOptions { IsUpsert = true }
+			);
+		}
+		
+		public async Task UpdateParticipant(string wallet, string gender)
+		{
+			await _userCollection.UpdateOneAsync(
+				x => x.Wallet == wallet,
+				Builders<User>.Update.Set(x => x.Gender, gender),
+				new UpdateOptions { IsUpsert = true }
+			);
+		}
+
 		public async Task<bool> EndChat(ChatData chat, bool isBot, string userId)
 		{
-			var user = await _userCollection.FindSync<User>(x => x.Id == userId).FirstOrDefaultAsync();
-			var currentScore = user?.Score ?? 0;
+			var user = await GetUser(userId);
+
 
 			var participants = await _participantsCollection.FindSync<Participant>(x => x.ActiveChatId == chat.Id).ToListAsync();
 
 			var participant = chat.Participant;
 			var otherParticipant = participants.FirstOrDefault(x => string.IsNullOrWhiteSpace(x.User) || x.User != chat.Participant.User);
 			bool isScore = false;
+
+			// Update staked amounts based on guess
 			if (string.IsNullOrWhiteSpace(otherParticipant.User))
 			{
 				//is bot
 				if (isBot)
 				{
+					// Correct guess - increase stake
 					await _userCollection.UpdateOneAsync(
-						x => x.Id == userId,
-						Builders<User>.Update.Set(x => x.Score, ++currentScore),
-						new UpdateOptions { IsUpsert = true }
+						x => x.Wallet == userId,
+						Builders<User>.Update.Inc(x => x.Staked, 1)
 					);
 					isScore = true;
+				}
+				else
+				{
+					// Wrong guess - decrease stake
+					await _userCollection.UpdateOneAsync(
+						x => x.Wallet == userId,
+						Builders<User>.Update.Inc(x => x.Staked, -1)
+					);
 				}
 			}
 			else
 			{
 				if (!isBot)
 				{
+					// Correct guess - increase stake
 					await _userCollection.UpdateOneAsync(
-						x => x.Id == userId,
-						Builders<User>.Update.Set(x => x.Score, ++currentScore),
-						new UpdateOptions { IsUpsert = true }
+						x => x.Wallet == userId,
+						Builders<User>.Update.Inc(x => x.Staked, 1)
 					);
 					isScore = true;
 				}
+				else
+				{
+					// Wrong guess - decrease stake
+					await _userCollection.UpdateOneAsync(
+						x => x.Wallet == userId,
+						Builders<User>.Update.Inc(x => x.Staked, -1)
+					);
+				}
 			}
+
 			await ResetActiveChat(participant, otherParticipant);
 
 			ChatUpdates.OnNext((chat.Id, new ChatMessageData
@@ -220,30 +262,58 @@ namespace ClubberAI.ServiceDefaults.Services
 		{
 			await _participantsCollection.UpdateOneAsync(
 				x => x.Id == participant.Id,
-				Builders<Participant>.Update.Set(x => x.ActiveChatId, "")
+				Builders<Participant>.Update.Set(x => x.ActiveChatId, null)
 			);
 
 			await _participantsCollection.UpdateOneAsync(
 				x => x.Id == otherParticipant.Id,
-				Builders<Participant>.Update.Set(x => x.ActiveChatId, "")
+				Builders<Participant>.Update.Set(x => x.ActiveChatId, null)
 			);
 		}
-
-		public async Task<(List<ChatData> chats, List<Party> parties)> GetActiveChats(string? walletUser)
+		public async Task<(List<ChatData> chats, List<Party> parties, List<ChatData> pastChats, List<Participant> allParticipants)> GetActiveChats(string? walletUser)
 		{
+			// Get active chats
 			var participants = await _participantsCollection.FindSync<Participant>(x => x.User == walletUser && x.ActiveChatId != null && x.ActiveChatId != "").ToListAsync();
 			var chatIds = participants.Select(x => x.ActiveChatId).ToList();
 			var chats = await _chatsCollection.FindSync<ChatData>(x => chatIds.Contains(x.Id)).ToListAsync();
 			
-			// Set chat.Participant to current user's participant
+			// Set chat.Participant to current user's participant for active chats
 			foreach (var chat in chats)
 			{
 				chat.Participant = participants.First(p => p.ActiveChatId == chat.Id);
 			}
+
+			// Get past chats where user was participant 1 or 2
+			var allParticipants = await _participantsCollection.FindSync<Participant>(x => x.User == walletUser).ToListAsync();
+			var participantIds = allParticipants.Select(x => x.Id).ToList();
+			var pastChats = await _chatsCollection.FindSync<ChatData>(
+				x => (participantIds.Contains(x.Participant1Id) || participantIds.Contains(x.Participant2Id)) 
+				&& !chatIds.Contains(x.Id)
+			).ToListAsync();
+
+			// Set chat.Participant for past chats
+			foreach (var chat in pastChats)
+			{
+				chat.Participant = allParticipants.First(p => 
+					p.Id == chat.Participant1Id || p.Id == chat.Participant2Id);
+			}
 			
-			var partyIds = chats.Select(x => x.PartyId).Distinct().ToList();
+			// Get all party IDs from both active and past chats
+			var partyIds = chats.Concat(pastChats)
+				.Select(x => x.PartyId)
+				.Distinct()
+				.ToList();
 			var parties = await _partiesCollection.FindSync<Party>(x => partyIds.Contains(x.Id)).ToListAsync();
-			return (chats, parties);
+
+			// Get all unique participants from chats that have a User property
+			var otherParticipantIds = chats.Concat(pastChats)
+				.SelectMany(x => new[] { x.Participant1Id, x.Participant2Id })
+				.Distinct()
+				.ToList();
+			var chatParticipants = await _participantsCollection.FindSync<Participant>(x => 
+				otherParticipantIds.Contains(x.Id) && x.User != null).ToListAsync();
+				
+			return (chats, parties, pastChats, chatParticipants);
 		}
 	}
 }
