@@ -6,7 +6,7 @@ public class PartyApiClient
 
 	public PartyApiClient(HttpClient httpClient, IConfiguration configuration)
 	{
-		_apiService = configuration["services:apiservice:https:0"];
+		_apiService = (configuration["services:apiservice:https:0"] ?? string.Empty).Replace(".internal", string.Empty);
 	}
 
 	public string GetApiUrl()
@@ -22,7 +22,8 @@ public class TokenApiClient
 	public TokenApiClient(IConfiguration configuration, HttpClient client)
 	{
 		_client = client;
-		_tokenService = configuration["services:token:https:0"] ?? configuration["services:token:http:0"];
+		_tokenService = (configuration["services:token:https:0"] ?? configuration["services:token:http:0"] ?? string.Empty)
+			.Replace(".internal", string.Empty);
 	}
 
 	public HttpClient GetClient() => _client;
